@@ -47,6 +47,9 @@ public final class InitHelper {
 		}
 	}
 
+	private InitHelper() {
+	}
+
 	/**
 	 * Helper method to retrieve a single property file.
 	 *
