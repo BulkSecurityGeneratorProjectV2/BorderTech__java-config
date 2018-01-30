@@ -41,7 +41,6 @@ import org.apache.commons.configuration.MapConfiguration;
  * primitive mechanism for recording significant events which can be accessed later for logging if need be.
  * </p>
  *
- * @author Yiannis Paschalidis
  * @author Jonathan Austin
  * @since 1.0.0
  */
