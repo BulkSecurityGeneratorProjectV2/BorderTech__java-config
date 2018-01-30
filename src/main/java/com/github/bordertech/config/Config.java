@@ -32,7 +32,7 @@ public final class Config {
 	/**
 	 * The current configuration.
 	 */
-	private static Configuration CONFIGURATION = loadConfiguration();
+	private static Configuration configuration = loadConfiguration();
 
 	/**
 	 * Contains the complete set of property change listeners that have registered with this class.
@@ -49,7 +49,7 @@ public final class Config {
 	 * @return the current configuration.
 	 */
 	public static Configuration getInstance() {
-		return CONFIGURATION;
+		return configuration;
 	}
 
 	/**
@@ -57,7 +57,7 @@ public final class Config {
 	 * made will be lost. This method is primarily intended for unit testing.
 	 */
 	public static synchronized void reset() {
-		CONFIGURATION = loadConfiguration();
+		configuration = loadConfiguration();
 		notifyListeners();
 	}
 
@@ -93,7 +93,7 @@ public final class Config {
 	 * @param configuration the configuration to set.
 	 */
 	public static synchronized void setConfiguration(final Configuration configuration) {
-		Config.CONFIGURATION = configuration;
+		Config.configuration = configuration;
 		notifyListeners();
 	}
 
@@ -143,6 +143,10 @@ public final class Config {
 		return config == null ? getDefaultConfiguration() : config;
 	}
 
+	/**
+	 *
+	 * @return a SLI Configuration or null if none available
+	 */
 	private static Configuration checkSLIConfiguration() {
 
 		if (!InitHelper.SLI_ENABLED) {
@@ -169,6 +173,9 @@ public final class Config {
 		return null;
 	}
 
+	/**
+	 * @return the default configuration
+	 */
 	private static Configuration getDefaultConfiguration() {
 		// Create Instance
 		try {

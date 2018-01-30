@@ -16,7 +16,7 @@
 
 	<properties>
 		<multiproject.basedir>${basedir}/..</multiproject.basedir>
-		<wc.qa.skip>true</wc.qa.skip>
+		<wc.qa.skip>false</wc.qa.skip>
 	</properties>
 
 	<dependencies>
