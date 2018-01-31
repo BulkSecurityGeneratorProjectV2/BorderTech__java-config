@@ -21,7 +21,10 @@ import org.apache.commons.configuration.MapConfiguration;
  * the configuration with whatever mechanism is used to configure their applications.
  * <b>Note:</b>To prevent against accidental modifications, the default configuration is read-only, and any attempt to
  * modify it will result in a runtime exception.</p>
- *
+ * <p>
+ * The default configuration can be overridden by setting properties in a file
+ * <code>bordertech-config.properties</code>. Refer to {@link InitHelper} for property details.
+ * </p>
  *
  * @author Joshua Barclay
  * @author Jonathan Austin
