@@ -25,6 +25,14 @@ import org.apache.commons.configuration.MapConfiguration;
  * The default configuration can be overridden by setting properties in a file
  * <code>bordertech-config.properties</code>. Refer to {@link InitHelper} for property details.
  * </p>
+ * <p>
+ * The default resources Config looks for are:-
+ * </p>
+ * <ul>
+ * <li><code>bordertech-defaults.properties</code> - framework defaults</li>
+ * <li><code>bordertech-app.properties</code> - application properties</li>
+ * <li><code>bordertech-local.properties</code> - local developer properties</li>
+ * </ul>
  *
  * @author Joshua Barclay
  * @author Jonathan Austin

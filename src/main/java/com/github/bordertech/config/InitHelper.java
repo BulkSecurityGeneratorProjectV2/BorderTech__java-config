@@ -22,7 +22,7 @@ public final class InitHelper {
 	private static final String PARAM_KEY_RESOURCE_ORDER = "bordertech.config.resource.order";
 	private static final List<String> DEFAULT_BORDERTECH_LOAD_ORDER = Arrays.asList(
 			// The name of the first resource we look for is for internal default properties
-			"bordertech-default.properties",
+			"bordertech-defaults.properties",
 			// The name of the next resource we look at is for application properties
 			"bordertech-app.properties",
 			// The last properties which are loaded are local/developer properties
