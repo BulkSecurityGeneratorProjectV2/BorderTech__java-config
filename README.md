@@ -1,6 +1,14 @@
 # Config
 Project configuration mechanism.
 
+## Status
+[![CircleCI](https://circleci.com/gh/BorderTech/java-config.svg?style=svg)](https://circleci.com/gh/BorderTech/java-config)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/738a3851c483470da86ffe1d047f344c)](https://www.codacy.com/app/BorderTech/java-config?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=BorderTech/java-config&amp;utm_campaign=Badge_Grade)
+
+# Why Use Config?
+TODO
+
+# How Config Works
 The `Config` class is the central access point to the configuration mechanism, and is used to read or modify the
 current configuration.
 
