@@ -2,33 +2,58 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<name>corpdir-lib-config</name>
-	<artifactId>corpdir-lib-config</artifactId>
+	<groupId>com.github.bordertech.config</groupId>
+	<name>config</name>
+	<artifactId>config</artifactId>
+	<version>1.0.0</version>
 
 	<parent>
-		<groupId>com.github.bordertech.corpdir</groupId>
-		<artifactId>corpdir-srv-parent</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
-		<relativePath>../pom.xml</relativePath>
+		<groupId>com.github.bordertech.common</groupId>
+		<artifactId>qa-parent</artifactId>
+		<version>1.0.4</version>
 	</parent>
 
 	<packaging>jar</packaging>
 
 	<properties>
-		<multiproject.basedir>${basedir}/..</multiproject.basedir>
-		<wc.qa.skip>false</wc.qa.skip>
+		<bt.qa.skip>false</bt.qa.skip>
 	</properties>
+
+	<description>
+		Mechanism to help manage configuration properties of Java proejcts.
+	</description>
+
+	<url>https://github.com/bordertech/java-config</url>
+
+	<scm>
+		<url>https://github.com/bordertech/java-config</url>
+		<connection>scm:git:https://github.com/bordertech/java-config.git</connection>
+		<developerConnection>scm:git:https://github.com/bordertech/java-config.git</developerConnection>
+		<tag>java-config-1.0.0</tag>
+	</scm>
+
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/bordertech/java-config/issues</url>
+	</issueManagement>
+
+	<ciManagement>
+		<system>CircleCI</system>
+		<url>https://circleci.com/gh/bordertech/java-config/</url>
+	</ciManagement>
 
 	<dependencies>
 		<!-- Configuration properties. -->
 		<dependency>
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
+			<version>1.10</version>
 		</dependency>
 		<!-- Commons config brings in servlet.api -->
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
+			<version>2.5</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
