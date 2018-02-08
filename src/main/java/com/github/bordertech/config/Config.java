@@ -160,7 +160,7 @@ public final class Config {
 	 */
 	private static Configuration checkSLIConfiguration() {
 
-		if (!InitHelper.SLI_ENABLED) {
+		if (!InitHelper.SPI_ENABLED) {
 			return null;
 		}
 
@@ -176,7 +176,7 @@ public final class Config {
 			}
 
 			//Add the base configuration last so it is overridden.
-			if (InitHelper.SLI_APPEND_DEFAULT_CONFIG) {
+			if (InitHelper.SPI_APPEND_DEFAULT_CONFIG) {
 				compositeConfig.addConfiguration(getDefaultConfiguration());
 			}
 			return compositeConfig;

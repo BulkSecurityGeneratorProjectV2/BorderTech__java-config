@@ -9,6 +9,23 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 
 /**
  * Helper class for {@link Config} initialisation.
+ * <p>
+ * The following properties can be set:-
+ * <ul>
+ * <li>bordertech.config.default.impl - Default implementation class name</li>
+ * <li>bordertech.config.spi.enabled - enable SPI lookup (default: true)</li>
+ * <li>bordertech.config.spi.append.default - append the default configuration (default: true)</li>
+ * <li>bordertech.config.resource.order - order of resources to load into the configuration</li>
+ * </ul>
+ * <p>
+ * The default resources Config looks for are:-
+ * </p>
+ * <ul>
+ * <li><code>bordertech-defaults.properties</code> - framework defaults</li>
+ * <li><code>bordertech-app.properties</code> - application properties</li>
+ * <li><code>bordertech-local.properties</code> - local developer properties</li>
+ * </ul>
+ *
  *
  * @author Jonathan Austin
  * @since 1.0.0
@@ -17,8 +34,8 @@ public final class InitHelper {
 
 	private static final String DEFAULTS_FILE_NAME = "bordertech-config.properties";
 	private static final String PARAM_KEY_DEFAULT_CONFIG_IMPL = "bordertech.config.default.impl";
-	private static final String PARAM_KEY_SLI_APPEND_DEFAULT = "bordertech.config.sli.append.default";
-	private static final String PARAM_KEY_SLI_ENABLED = "bordertech.config.sli.enabled";
+	private static final String PARAM_KEY_SPI_ENABLED = "bordertech.config.spi.enabled";
+	private static final String PARAM_KEY_SPI_APPEND_DEFAULT = "bordertech.config.spi.append.default";
 	private static final String PARAM_KEY_RESOURCE_ORDER = "bordertech.config.resource.order";
 	private static final List<String> DEFAULT_BORDERTECH_LOAD_ORDER = Arrays.asList(
 			// The name of the first resource we look for is for internal default properties
@@ -34,20 +51,20 @@ public final class InitHelper {
 	 */
 	public static final String DEFAULT_CONFIG_IMPL;
 	/**
-	 * SLI enabled flag.
+	 * SPI enabled flag.
 	 */
-	public static final boolean SLI_ENABLED;
+	public static final boolean SPI_ENABLED;
 	/**
-	 * SLI append default config flag.
+	 * SPI append default config flag.
 	 */
-	public static final boolean SLI_APPEND_DEFAULT_CONFIG;
+	public static final boolean SPI_APPEND_DEFAULT_CONFIG;
 
 	static {
 		// Load the config defaults (if exists)
 		Configuration configDefaults = loadPropertyFile(DEFAULTS_FILE_NAME);
 		DEFAULT_CONFIG_IMPL = configDefaults.getString(PARAM_KEY_DEFAULT_CONFIG_IMPL, DefaultConfiguration.class.getName());
-		SLI_APPEND_DEFAULT_CONFIG = configDefaults.getBoolean(PARAM_KEY_SLI_APPEND_DEFAULT, true);
-		SLI_ENABLED = configDefaults.getBoolean(PARAM_KEY_SLI_ENABLED, true);
+		SPI_APPEND_DEFAULT_CONFIG = configDefaults.getBoolean(PARAM_KEY_SPI_APPEND_DEFAULT, true);
+		SPI_ENABLED = configDefaults.getBoolean(PARAM_KEY_SPI_ENABLED, true);
 		String[] override = configDefaults.getStringArray(PARAM_KEY_RESOURCE_ORDER);
 		if (override == null || override.length == 0) {
 			DEFAULT_RESOURCE_LOAD_ORDER = DEFAULT_BORDERTECH_LOAD_ORDER;
