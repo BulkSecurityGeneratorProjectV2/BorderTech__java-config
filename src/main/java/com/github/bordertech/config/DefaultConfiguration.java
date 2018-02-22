@@ -57,18 +57,23 @@ public class DefaultConfiguration implements Configuration {
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
 	 * end of the loading process.
 	 */
-	private static final String USE_SYSTEM_PROPERTIES = "bordertech.config.parameters.useSystemProperties";
+	public static final String USE_SYSTEM_PROPERTIES = "bordertech.config.parameters.useSystemProperties";
 
 	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
 	 */
-	private static final String DUMP = "bordertech.config.parameters.dump.console";
+	public static final String DUMP = "bordertech.config.parameters.dump.console";
+
+	/**
+	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
+	 */
+	public static final String ENVIRONMENT_PROPERTY = "bordertech.config.environment";
 
 	/**
 	 * Parameters with this prefix will be dumped into the System parameters. This feature is for handling recalcitrant
 	 * 3rd party software only - not for general use!!!
 	 */
-	private static final String SYSTEM_PARAMETERS_PREFIX = "bordertech.config.parameters.system.";
+	public static final String SYSTEM_PARAMETERS_PREFIX = "bordertech.config.parameters.system.";
 
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
@@ -111,6 +116,10 @@ public class DefaultConfiguration implements Configuration {
 	// -----------------------------------------------------------------------------------------------------------------
 	// Implementation
 	/**
+	 * Holds the current environment suffix (if set).
+	 */
+	private String currentEnvironment = null;
+	/**
 	 * Our backing store is a Map object.
 	 */
 	private Map<String, Object> backing;
@@ -131,6 +140,9 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private Map<String, Properties> subcontextCache;
 
+	/**
+	 * Properties added at runtime.
+	 */
 	private IncludeProperties runtimeProperties;
 
 	/**
@@ -166,26 +178,6 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	public String get(final String key, final String defolt) {
-		String result = get(key);
-
-		if (result == null) {
-			return defolt;
-		} else {
-			return result;
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	public String get(final String key) {
-		return (String) backing.get(key);
-	}
-
-	/**
 	 * Splits the given comma-delimited string into an an array. Leading/trailing spaces in list items will be trimmed.
 	 *
 	 * @param list the String to split.
@@ -218,16 +210,6 @@ public class DefaultConfiguration implements Configuration {
 		return aStr.trim();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public Properties getProperties() {
-		// Don't return the backing directly; make a copy so that the caller can't change us...
-		Properties copy = new Properties();
-		copy.putAll(backing);
-		return copy;
-	}
-
 	// -----------------------------------------------------------------------------------------------------------------
 	/**
 	 * This method initialises most of the instance variables.
@@ -240,6 +222,7 @@ public class DefaultConfiguration implements Configuration {
 		// subContextCache is updated on the fly so ensure no concurrent modification.
 		subcontextCache = Collections.synchronizedMap(new HashMap());
 		runtimeProperties = new IncludeProperties("Runtime: added at runtime");
+		currentEnvironment = null;
 	}
 
 	/**
@@ -288,6 +271,9 @@ public class DefaultConfiguration implements Configuration {
 		// LEGACY
 		systemProperties = getSubProperties(LEGACY_SYSTEM_PARAMETERS_PREFIX, true);
 		System.getProperties().putAll(systemProperties);
+
+		// Check if environment set
+		checkEnvironmentProperty();
 	}
 
 	/**
@@ -643,53 +629,6 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Returns a sub-set of the parameters contained in this configuration.
-	 *
-	 * @param prefix the prefix of the parameter keys which should be included.
-	 * @param truncate if true, the prefix is truncated in the returned properties.
-	 * @return the properties sub-set, may be empty.
-	 */
-	public Properties getSubProperties(final String prefix, final boolean truncate) {
-		String cacheKey = truncate + prefix;
-		Properties sub = subcontextCache.get(cacheKey);
-
-		if (sub != null) {
-			// make a copy so users can't change.
-			Properties copy = new Properties();
-			copy.putAll(sub);
-			return copy;
-		}
-
-		sub = new Properties();
-
-		int length = prefix.length();
-
-		for (Map.Entry<String, Object> entry : backing.entrySet()) {
-
-			String key = entry.getKey();
-
-			if (key.startsWith(prefix)) {
-				// If we are truncating, remove the prefix
-				String newKey = key;
-
-				if (truncate) {
-					newKey = key.substring(length);
-				}
-
-				sub.setProperty(newKey, (String) entry.getValue());
-			}
-		}
-
-		subcontextCache.put(cacheKey, sub);
-
-		// Make a copy so users can't change.
-		Properties copy = new Properties();
-		copy.putAll(sub);
-
-		return copy;
-	}
-
-	/**
 	 * Iterates through the values, looking for values containing ${...} strings. For those that do, we substitute if
 	 * the stuff in the {...} is a defined key.
 	 *
@@ -805,7 +744,520 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Copies information from the input stream to the output stream using a specified buffer size.
+	 *
+	 * @param in the source stream.
+	 * @param out the destination stream.
+	 * @param bufferSize the buffer size.
+	 * @throws IOException if there is an error reading or writing to the streams.
+	 */
+	private static void copyStream(final InputStream in, final OutputStream out, final int bufferSize)
+			throws IOException {
+		final byte[] buf = new byte[bufferSize];
+		int bytesRead = in.read(buf);
+
+		while (bytesRead != -1) {
+			out.write(buf, 0, bytesRead);
+			bytesRead = in.read(buf);
+		}
+		out.flush();
+	}
+
+	/**
+	 * The parameters implementation can not depend on a logging framework to log errors, as it is typically used to
+	 * configure logging.
+	 *
+	 * @param message the message to log.
+	 */
+	private static void log(final String message) {
+		System.out.println(message);
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// The rest of this class is the implementation of Configuration interface
+	@Override
+	public int getInt(final String key, final int defolt) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defolt;
+			}
+
+			return Integer.parseInt(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public int getInt(final String key) {
+		return getInt(key, 0);
+	}
+
+	@Override
+	public short getShort(final String key) {
+		return getShort(key, (short) 0);
+	}
+
+	@Override
+	public short getShort(final String key, final short defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Short.parseShort(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Short getShort(final String key, final Short defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Short.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public void addProperty(final String key, final Object value) {
+		if (containsKey(key)) {
+			String newValue = get(key) + ',' + (value == null ? "" : value);
+			addOrModifyProperty(key, newValue);
+		} else {
+			addOrModifyProperty(key, value == null ? null : value.toString());
+		}
+	}
+
+	@Override
+	public void clear() {
+		backing.clear();
+		handlePropertiesChanged();
+	}
+
+	@Override
+	public void clearProperty(final String key) {
+		backing.remove(key);
+		handlePropertiesChanged();
+	}
+
+	@Override
+	public boolean containsKey(final String key) {
+		if (useEnvironmentKey(key) && backing.containsKey(getEnvironmentKey(key))) {
+			return true;
+		}
+		return backing.containsKey(key);
+	}
+
+	@Override
+	public BigDecimal getBigDecimal(final String key) {
+		return getBigDecimal(key, new BigDecimal("0.0"));
+	}
+
+	@Override
+	public BigDecimal getBigDecimal(final String key, final BigDecimal defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return new BigDecimal(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public BigInteger getBigInteger(final String key) {
+		return getBigInteger(key, BigInteger.ZERO);
+	}
+
+	@Override
+	public BigInteger getBigInteger(final String key, final BigInteger defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return new BigInteger(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public boolean getBoolean(final String key) {
+		if (useEnvironmentKey(key) && booleanBacking.contains(getEnvironmentKey(key))) {
+			return true;
+		}
+		return booleanBacking.contains(key);
+	}
+
+	@Override
+	public boolean getBoolean(final String key, final boolean defaultValue) {
+		return containsKey(key) ? getBoolean(key) : defaultValue;
+	}
+
+	@Override
+	public Boolean getBoolean(final String key, final Boolean defaultValue) {
+		if (containsKey(key)) {
+			return getBoolean(key);
+		}
+		return defaultValue;
+	}
+
+	@Override
+	public byte getByte(final String key) {
+		return getByte(key, (byte) 0);
+	}
+
+	@Override
+	public byte getByte(final String key, final byte defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Byte.parseByte(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Byte getByte(final String key, final Byte defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Byte.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public double getDouble(final String key) {
+		return getDouble(key, 0.0);
+	}
+
+	@Override
+	public double getDouble(final String key, final double defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Double.parseDouble(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Double getDouble(final String key, final Double defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Double.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public float getFloat(final String key) {
+		return getFloat(key, 0.0f);
+	}
+
+	@Override
+	public float getFloat(final String key, final float defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Float.parseFloat(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Float getFloat(final String key, final Float defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Float.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Integer getInteger(final String key, final Integer defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Integer.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Iterator<String> getKeys() {
+		return backing.keySet().iterator();
+	}
+
+	@Override
+	public Iterator<String> getKeys(final String prefix) {
+		Set<String> keys = new HashSet<>();
+
+		for (String key : backing.keySet()) {
+			if (key.startsWith(prefix)) {
+				keys.add(key);
+			}
+		}
+
+		return keys.iterator();
+	}
+
+	@Override
+	public List getList(final String key) {
+		return getList(key, new ArrayList(1));
+	}
+
+	@Override
+	public List getList(final String key, final List defaultValue) {
+		if (containsKey(key)) {
+			return Arrays.asList(getStringArray(key));
+		} else {
+			return defaultValue;
+		}
+	}
+
+	@Override
+	public long getLong(final String key) {
+		return getLong(key, 0L);
+	}
+
+	@Override
+	public long getLong(final String key, final long defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Long.parseLong(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Long getLong(final String key, final Long defaultValue) {
+		try {
+			String value = get(key);
+
+			if (value == null) {
+				return defaultValue;
+			}
+
+			return Long.valueOf(value);
+		} catch (NumberFormatException ex) {
+			throw new ConversionException(ex);
+		}
+	}
+
+	@Override
+	public Properties getProperties(final String key) {
+		String[] keyValuePairs = getStringArray(key);
+
+		Properties props = new Properties();
+
+		for (String pair : keyValuePairs) {
+			int index = pair.indexOf('=');
+
+			if (index < 1) {
+				throw new IllegalArgumentException("Malformed property: " + pair);
+			}
+
+			props.put(pair.substring(0, index), pair.substring(index + 1, pair.length()));
+		}
+
+		return props;
+	}
+
+	@Override
+	public Object getProperty(final String key) {
+		return get(key);
+	}
+
+	@Override
+	public String getString(final String key) {
+		return get(key);
+	}
+
+	@Override
+	public String getString(final String key, final String defaultValue) {
+		return get(key, defaultValue);
+	}
+
+	@Override
+	public String[] getStringArray(final String key) {
+		String list = get(key);
+
+		if (list == null) {
+			return new String[0];
+		}
+
+		return parseStringArray(list);
+	}
+
+	@Override
+	public boolean isEmpty() {
+		return backing.isEmpty();
+	}
+
+	@Override
+	public void setProperty(final String key, final Object value) {
+		addOrModifyProperty(key, value == null ? null : value.toString());
+	}
+
+	@Override
+	public Configuration subset(final String prefix) {
+		return new MapConfiguration(getSubProperties(prefix, false));
+	}
+
+	/**
+	 * @return a copy of the current properties
+	 */
+	public Properties getProperties() {
+		// Don't return the backing directly; make a copy so that the caller can't change us...
+		Properties copy = new Properties();
+		copy.putAll(backing);
+		return copy;
+	}
+
+	/**
+	 * Returns a sub-set of the parameters contained in this configuration.
+	 *
+	 * @param prefix the prefix of the parameter keys which should be included.
+	 * @param truncate if true, the prefix is truncated in the returned properties.
+	 * @return the properties sub-set, may be empty.
+	 */
+	public Properties getSubProperties(final String prefix, final boolean truncate) {
+		String cacheKey = truncate + prefix;
+		Properties sub = subcontextCache.get(cacheKey);
+
+		if (sub != null) {
+			// make a copy so users can't change.
+			Properties copy = new Properties();
+			copy.putAll(sub);
+			return copy;
+		}
+
+		sub = new Properties();
+
+		int length = prefix.length();
+
+		for (Map.Entry<String, Object> entry : backing.entrySet()) {
+
+			String key = entry.getKey();
+
+			if (key.startsWith(prefix)) {
+				// If we are truncating, remove the prefix
+				String newKey = key;
+
+				if (truncate) {
+					newKey = key.substring(length);
+				}
+
+				sub.setProperty(newKey, (String) entry.getValue());
+			}
+		}
+
+		subcontextCache.put(cacheKey, sub);
+
+		// Make a copy so users can't change.
+		Properties copy = new Properties();
+		copy.putAll(sub);
+
+		return copy;
+	}
+
+	/**
+	 *
+	 * @param key the property key
+	 * @param defolt the default value if key not available
+	 * @return the property value or null
+	 */
+	public String get(final String key, final String defolt) {
+		String result = get(key);
+		if (result == null) {
+			return defolt;
+		} else {
+			return result;
+		}
+	}
+
+	/**
+	 *
+	 * @param key the property key
+	 * @return the property value or null
+	 */
+	public String get(final String key) {
+		// Check environment property
+		if (useEnvironmentKey(key)) {
+			String result = (String) backing.get(getEnvironmentKey(key));
+			if (result != null) {
+				return result;
+			}
+		}
+		return (String) backing.get(key);
+	}
+
+	/**
+	 * Reload the properties to their initial state.
 	 */
 	public void refresh() {
 		synchronized (lockObject) {
@@ -822,7 +1274,11 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Add or Modify a property at runtime.
+	 *
+	 * @param name the property name
+	 * @param value the property value
+	 *
 	 */
 	public void addOrModifyProperty(final String name, final String value) {
 		if (name == null) {
@@ -842,13 +1298,44 @@ public class DefaultConfiguration implements Configuration {
 
 		runtimeProperties.setProperty(name, value);
 
-		// clear the subContext cache, it's now invalid
-		subcontextCache.clear();
+		handlePropertiesChanged();
 	}
 
-	// -----------------------------------------------------------------------------------------------------------------
-	// Helper classes
-	// -----------------------------------------------------------------------------------------------------------------
+	/**
+	 * Handle a property change.
+	 */
+	protected void handlePropertiesChanged() {
+		// clear the subContext cache, it's now invalid
+		subcontextCache.clear();
+		// Check if environment changed
+		checkEnvironmentProperty();
+	}
+
+	/**
+	 * Check if the environment property has been set.
+	 */
+	protected void checkEnvironmentProperty() {
+		String env = (String) backing.get(ENVIRONMENT_PROPERTY);
+		currentEnvironment = (env == null || env.isEmpty()) ? null : env;
+	}
+
+	/**
+	 * @param key the property key
+	 * @return true if check environment suffix
+	 */
+	protected boolean useEnvironmentKey(final String key) {
+		// Has environment and is not the environment property
+		return currentEnvironment != null && !ENVIRONMENT_PROPERTY.equals(key);
+	}
+
+	/**
+	 * @param key the property key
+	 * @return the property key with the environment suffix
+	 */
+	protected String getEnvironmentKey(final String key) {
+		return key + "." + currentEnvironment;
+	}
+
 	/**
 	 * A helper class for properties which are being loaded.
 	 */
@@ -933,543 +1420,4 @@ public class DefaultConfiguration implements Configuration {
 
 	}
 
-	/**
-	 * The parameters implementation can not depend on a logging framework to log errors, as it is typically used to
-	 * configure logging.
-	 *
-	 * @param message the message to log.
-	 */
-	private static void log(final String message) {
-		System.out.println(message);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
-	// The rest of this class is the implementation of Configuration interface
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getInt(final String key, final int defolt) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defolt;
-			}
-
-			return Integer.parseInt(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int getInt(final String key) {
-		return getInt(key, 0);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public short getShort(final String key) {
-		return getShort(key, (short) 0);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public short getShort(final String key, final short defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Short.parseShort(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Short getShort(final String key, final Short defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Short.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void addProperty(final String key, final Object value) {
-		if (containsKey(key)) {
-			String newValue = get(key) + ',' + (value == null ? "" : value);
-			addOrModifyProperty(key, newValue);
-		} else {
-			addOrModifyProperty(key, value == null ? null : value.toString());
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void clear() {
-		backing.clear();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void clearProperty(final String key) {
-		backing.remove(key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean containsKey(final String key) {
-		return backing.containsKey(key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public BigDecimal getBigDecimal(final String key) {
-		return getBigDecimal(key, new BigDecimal("0.0"));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public BigDecimal getBigDecimal(final String key, final BigDecimal defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return new BigDecimal(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public BigInteger getBigInteger(final String key) {
-		return getBigInteger(key, BigInteger.ZERO);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public BigInteger getBigInteger(final String key, final BigInteger defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return new BigInteger(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean getBoolean(final String key) {
-		return booleanBacking.contains(key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean getBoolean(final String key, final boolean defaultValue) {
-		return containsKey(key) ? getBoolean(key) : defaultValue;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Boolean getBoolean(final String key, final Boolean defaultValue) {
-		if (containsKey(key)) {
-			return getBoolean(key);
-		}
-		return defaultValue;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public byte getByte(final String key) {
-		return getByte(key, (byte) 0);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public byte getByte(final String key, final byte defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Byte.parseByte(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Byte getByte(final String key, final Byte defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Byte.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public double getDouble(final String key) {
-		return getDouble(key, 0.0);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public double getDouble(final String key, final double defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Double.parseDouble(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Double getDouble(final String key, final Double defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Double.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public float getFloat(final String key) {
-		return getFloat(key, 0.0f);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public float getFloat(final String key, final float defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Float.parseFloat(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Float getFloat(final String key, final Float defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Float.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Integer getInteger(final String key, final Integer defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Integer.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Iterator<String> getKeys() {
-		return backing.keySet().iterator();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Iterator<String> getKeys(final String prefix) {
-		Set<String> keys = new HashSet<>();
-
-		for (String key : backing.keySet()) {
-			if (key.startsWith(prefix)) {
-				keys.add(key);
-			}
-		}
-
-		return keys.iterator();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List getList(final String key) {
-		return getList(key, new ArrayList(1));
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List getList(final String key, final List defaultValue) {
-		if (containsKey(key)) {
-			return Arrays.asList(getStringArray(key));
-		} else {
-			return defaultValue;
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getLong(final String key) {
-		return getLong(key, 0L);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public long getLong(final String key, final long defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Long.parseLong(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Long getLong(final String key, final Long defaultValue) {
-		try {
-			String value = get(key);
-
-			if (value == null) {
-				return defaultValue;
-			}
-
-			return Long.valueOf(value);
-		} catch (NumberFormatException ex) {
-			throw new ConversionException(ex);
-		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Properties getProperties(final String key) {
-		String[] keyValuePairs = getStringArray(key);
-
-		Properties props = new Properties();
-
-		for (String pair : keyValuePairs) {
-			int index = pair.indexOf('=');
-
-			if (index < 1) {
-				throw new IllegalArgumentException("Malformed property: " + pair);
-			}
-
-			props.put(pair.substring(0, index), pair.substring(index + 1, pair.length()));
-		}
-
-		return props;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Object getProperty(final String key) {
-		return get(key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String getString(final String key) {
-		return get(key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String getString(final String key, final String defaultValue) {
-		return get(key, defaultValue);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public String[] getStringArray(final String key) {
-		String list = get(key);
-
-		if (list == null) {
-			return new String[0];
-		}
-
-		return parseStringArray(list);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public boolean isEmpty() {
-		return backing.isEmpty();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void setProperty(final String key, final Object value) {
-		addOrModifyProperty(key, value == null ? null : value.toString());
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Configuration subset(final String prefix) {
-		return new MapConfiguration(getSubProperties(prefix, false));
-	}
-
-	/**
-	 * Copies information from the input stream to the output stream using a specified buffer size.
-	 *
-	 * @param in the source stream.
-	 * @param out the destination stream.
-	 * @param bufferSize the buffer size.
-	 * @throws IOException if there is an error reading or writing to the streams.
-	 */
-	private static void copyStream(final InputStream in, final OutputStream out, final int bufferSize)
-			throws IOException {
-		final byte[] buf = new byte[bufferSize];
-		int bytesRead = in.read(buf);
-
-		while (bytesRead != -1) {
-			out.write(buf, 0, bytesRead);
-			bytesRead = in.read(buf);
-		}
-		out.flush();
-	}
 }
