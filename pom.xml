@@ -10,17 +10,18 @@
 	<parent>
 		<groupId>com.github.bordertech.common</groupId>
 		<artifactId>qa-parent</artifactId>
-		<version>1.0.4</version>
+		<version>1.0.8</version>
 	</parent>
 
 	<packaging>jar</packaging>
 
 	<properties>
 		<bt.qa.skip>false</bt.qa.skip>
+		<bt.spotbugs.exclude.files>${bt.spotbugs.exclude.file},spotbugs-exclude-filter.xml</bt.spotbugs.exclude.files>
 	</properties>
 
 	<description>
-		Mechanism to help manage configuration properties of Java proejcts.
+		Mechanism to help manage configuration properties of Java projects.
 	</description>
 
 	<url>https://github.com/bordertech/java-config</url>
@@ -56,10 +57,10 @@
 			<version>2.5</version>
 			<scope>provided</scope>
 		</dependency>
+		<!-- Junit -->
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
 		</dependency>
 	</dependencies>
 </project>

@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
@@ -310,16 +311,12 @@ public class DefaultConfiguration implements Configuration {
 		// Try to be sneaky and print the codesource location (for orientation of user)
 		try {
 			ProtectionDomain domain = getClass().getProtectionDomain();
-			CodeSource codesource = null;
-
 			if (domain != null) {
-				codesource = domain.getCodeSource();
+				CodeSource codesource = domain.getCodeSource();
+				codesourceStr = codesource == null ? "" : " code location of ConfigImpl: " + codesource.getLocation();
 			}
-
-			codesourceStr = (codesource != null ? " code location of ParamImpl: " + codesource.
-					getLocation() : "");
-		} catch (Throwable failed) {
-			// Okay
+		} catch (Exception failed) {
+			codesourceStr = "Could not determine location of ConfigImpl.";
 		}
 
 		StringBuilder info = new StringBuilder();
@@ -418,10 +415,10 @@ public class DefaultConfiguration implements Configuration {
 					copyStream(urlContentStream, baos, 2048);
 					urlContentBytes = baos.toByteArray();
 				}
-				String urlContent = new String(urlContentBytes, "UTF-8");
+				String urlContent = new String(urlContentBytes, StandardCharsets.UTF_8);
 
 				// Check if we have already loaded this file.
-				if (loadedFiles.keySet().contains(urlContent)) {
+				if (loadedFiles.containsKey(urlContent)) {
 					recordMessage("Skipped url " + url + " - duplicate of " + loadedFiles.get(urlContent));
 					continue;
 				}
