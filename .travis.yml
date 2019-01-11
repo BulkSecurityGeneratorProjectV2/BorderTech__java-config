@@ -12,7 +12,7 @@ jdk:
 
 ## Travis installs the project with the following maven command:- "mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V"
 script:
- - mvn test
+ - mvn package
 
 ## Send Coverage to Codacy
 after_success:
