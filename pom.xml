@@ -39,8 +39,8 @@
 	</issueManagement>
 
 	<ciManagement>
-		<system>CircleCI</system>
-		<url>https://circleci.com/gh/bordertech/java-config/</url>
+		<system>Travis CI</system>
+		<url>https://travis-ci.com/BorderTech/java-config</url>
 	</ciManagement>
 
 	<dependencies>
