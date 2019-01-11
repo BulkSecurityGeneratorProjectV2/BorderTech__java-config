@@ -1,14 +1,13 @@
 before_install:
 - echo "MAVEN_OPTS='-Xmx512m -XX:MaxPermSize=128m'" > ~/.mavenrc
 - mvn clean
-## Codacy Coverage Setup
- - curl -sL https://github.com/jpm4j/jpm4j.installers/raw/master/dist/biz.aQute.jpm.run.jar >jpm4j.jar
- - java -jar jpm4j.jar -u init
- - ~/jpm/bin/jpm install com.codacy:codacy-coverage-reporter:assembly
+- curl -sL https://github.com/jpm4j/jpm4j.installers/raw/master/dist/biz.aQute.jpm.run.jar > jpm4j.jar
+- java -jar jpm4j.jar -u init
+- ~/jpm/bin/jpm install com.codacy:codacy-coverage-reporter:assembly
 
 language: Java
 jdk:
-  - oraclejdk8
+ - oraclejdk8
 
 ## Travis installs the project with the following maven command:- "mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V"
 script:
@@ -16,4 +15,4 @@ script:
 
 ## Send Coverage to Codacy
 after_success:
-  - ~/jpm/bin/codacy-coverage-reporter -l Java -r target/site/jacoco/jacoco.xml
+ - ~/jpm/bin/codacy-coverage-reporter -l Java -r target/site/jacoco/jacoco.xml
