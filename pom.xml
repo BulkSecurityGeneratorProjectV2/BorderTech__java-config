@@ -10,7 +10,7 @@
 	<parent>
 		<groupId>com.github.bordertech.common</groupId>
 		<artifactId>qa-parent</artifactId>
-		<version>1.0.8</version>
+		<version>1.0.9</version>
 	</parent>
 
 	<packaging>jar</packaging>
@@ -63,4 +63,5 @@
 			<artifactId>junit-vintage-engine</artifactId>
 		</dependency>
 	</dependencies>
+
 </project>
