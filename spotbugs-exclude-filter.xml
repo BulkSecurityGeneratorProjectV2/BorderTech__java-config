@@ -3,7 +3,6 @@
 
 	<!-- False Positive on Loading Property Filenames -->
 	<Match>
-		<Class name="com.github.bordertech.config.DefaultConfiguration"/>
 		<Bug pattern="PATH_TRAVERSAL_IN" />
 	</Match>
 

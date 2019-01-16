@@ -29,6 +29,8 @@ import org.apache.commons.configuration.PropertiesConfiguration;
  *
  * @author Jonathan Austin
  * @since 1.0.0
+ *
+ * @see Config
  */
 public final class InitHelper {
 
