@@ -39,6 +39,8 @@ import org.apache.commons.configuration.MapConfiguration;
  *
  * @author Jonathan Austin
  * @since 1.0.0
+ *
+ * @see Config
  */
 public class DefaultConfiguration implements Configuration {
 
@@ -316,7 +318,7 @@ public class DefaultConfiguration implements Configuration {
 				codesourceStr = codesource == null ? "" : " code location of ConfigImpl: " + codesource.getLocation();
 			}
 		} catch (Exception failed) {
-			codesourceStr = "Could not determine location of ConfigImpl.";
+			codesourceStr = "Could not determine location of ConfigImpl [" + failed.getMessage() + "].";
 		}
 
 		StringBuilder info = new StringBuilder();
@@ -325,8 +327,7 @@ public class DefaultConfiguration implements Configuration {
 		info.append(codesourceStr);
 		info.append("\nWorking directory is ");
 		info.append(workingDir);
-		info.append(
-				"\nParameters have loaded, there is a full parameter dump in log4j FILE appender at ");
+		info.append("\nParameters have loaded, there is a full parameter dump in log4j FILE appender at ");
 		info.append(get(paramsFile));
 		info.append("\nTo dump all params to stdout set ");
 		info.append(DUMP);

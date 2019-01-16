@@ -11,6 +11,7 @@ import java.util.Set;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * The Config class is the central access point to the configuration mechanism, and is used to read or modify the
@@ -34,21 +35,45 @@ import org.apache.commons.configuration.MapConfiguration;
  * <li><code>bordertech-local.properties</code> - local developer properties</li>
  * </ul>
  *
+ * <p>
+ * A touchfile can be set via the parameter <code>bordertech.config.touchfile</code>. The touchfile is checked when
+ * {@link #getInstance()} is called. To avoid excessive IO an interval (in milli seconds) between checks can be set via
+ * <code>bordertech.config.touchfile.interval</code> and defaults to <code>10000</code>.
+ * </p>
+ *
  * @author Joshua Barclay
  * @author Jonathan Austin
  * @since 1.0.0
+ *
+ * @see DefaultConfiguration
+ * @see InitHelper
+ * @see ConfigurationLoader
  */
 public final class Config {
 
 	/**
-	 * The current configuration.
+	 * Used to lock the config.
 	 */
-	private static Configuration configuration = loadConfiguration();
+	private static final Object LOCK = new Object();
 
 	/**
 	 * Contains the complete set of property change listeners that have registered with this class.
 	 */
 	private static final Set<PropertyChangeListener> PROPERTY_CHANGE_LISTENERS = new HashSet<>();
+
+	/**
+	 * The current configuration.
+	 */
+	private static Configuration configuration;
+
+	/**
+	 * Touchfile (if configured).
+	 */
+	private static Touchfile touchfile;
+
+	static {
+		loadConfiguration();
+	}
 
 	/**
 	 * Prevent instantiation of this utility class.
@@ -60,6 +85,14 @@ public final class Config {
 	 * @return the current configuration.
 	 */
 	public static Configuration getInstance() {
+		// If a touchfile has been set, check if it has changed and reload if necessary
+		if (touchfile != null) {
+			synchronized (LOCK) {
+				if (touchfile.hasChanged()) {
+					loadConfiguration();
+				}
+			}
+		}
 		return configuration;
 	}
 
@@ -67,9 +100,26 @@ public final class Config {
 	 * Resets the configuration back to the default internal configuration. All configuration changes which have been
 	 * made will be lost. This method is primarily intended for unit testing.
 	 */
-	public static synchronized void reset() {
-		configuration = loadConfiguration();
-		notifyListeners();
+	public static void reset() {
+		synchronized (LOCK) {
+			loadConfiguration();
+		}
+	}
+
+	/**
+	 * <p>
+	 * Sets the current configuration.</p>
+	 * <p>
+	 * <b>Warning: </b> this will ignore any defined ConfigurationLoaders</p>
+	 *
+	 * @param configuration the configuration to set.
+	 */
+	public static void setConfiguration(final Configuration configuration) {
+		synchronized (LOCK) {
+			Config.configuration = configuration;
+			configTouchfile();
+			notifyListeners();
+		}
 	}
 
 	/**
@@ -79,7 +129,7 @@ public final class Config {
 	 * @return a copy of the given configuration.
 	 */
 	public static Configuration copyConfiguration(final Configuration original) {
-		Configuration copy = new MapConfiguration(new HashMap<String, Object>());
+		Configuration copy = new MapConfiguration(new HashMap<>());
 
 		for (Iterator<?> i = original.getKeys(); i.hasNext();) {
 			String key = (String) i.next();
@@ -91,21 +141,7 @@ public final class Config {
 
 			copy.setProperty(key, value);
 		}
-
 		return copy;
-	}
-
-	/**
-	 * <p>
-	 * Sets the current configuration.</p>
-	 * <p>
-	 * <b>Warning: </b> this will ignore any defined ConfigurationLoaders</p>
-	 *
-	 * @param configuration the configuration to set.
-	 */
-	public static synchronized void setConfiguration(final Configuration configuration) {
-		Config.configuration = configuration;
-		notifyListeners();
 	}
 
 	/**
@@ -147,11 +183,42 @@ public final class Config {
 	}
 
 	/**
-	 * @return the configuration to use.
+	 * Load the configuration.
 	 */
-	private static synchronized Configuration loadConfiguration() {
+	private static void loadConfiguration() {
 		Configuration config = checkSLIConfiguration();
-		return config == null ? getDefaultConfiguration() : config;
+		if (config == null) {
+			config = getDefaultConfiguration();
+		}
+		Config.configuration = config;
+		configTouchfile();
+		notifyListeners();
+	}
+
+	/**
+	 * Configure the touchfile (if provided).
+	 */
+	private static void configTouchfile() {
+		String file = getTouchFileName();
+		if (StringUtils.isEmpty(file)) {
+			touchfile = null;
+		} else {
+			touchfile = new Touchfile(file, getTouchFileInterval());
+		}
+	}
+
+	/**
+	 * @return the touch file name
+	 */
+	private static String getTouchFileName() {
+		return configuration.getString("bordertech.config.touchfile");
+	}
+
+	/**
+	 * @return the touch file interval (in milli seconds)
+	 */
+	private static long getTouchFileInterval() {
+		return configuration.getLong("bordertech.config.touchfile.interval", 10000);
 	}
 
 	/**
@@ -170,7 +237,7 @@ public final class Config {
 
 		// Use a CompositeConfiguration if there are custom ConfigurationLoader implementations.
 		if (iterator.hasNext()) {
-			CompositeConfiguration compositeConfig = new CompositeConfiguration(new MapConfiguration(new HashMap<String, Object>()));
+			CompositeConfiguration compositeConfig = new CompositeConfiguration(new MapConfiguration(new HashMap<>()));
 			while (iterator.hasNext()) {
 				compositeConfig.addConfiguration(iterator.next().getConfiguration());
 			}

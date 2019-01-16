@@ -6,13 +6,13 @@ import org.junit.Test;
 
 /**
  * Ensure the Config class does what it says.
+ *
  * @author Rick Brown
  */
 public class ConfigTest {
 
 	@Test
 	public void testGetInstance() {
-		System.out.println("getInstance");
 		Configuration expResult = Config.getInstance();
 		Configuration result = Config.getInstance();
 		Assert.assertSame("The singleton should return the same instance", expResult, result);
@@ -20,7 +20,6 @@ public class ConfigTest {
 
 	@Test
 	public void testCopyConfiguration() {
-		System.out.println("copyConfiguration");
 		Configuration config = Config.getInstance();
 		Configuration result = Config.copyConfiguration(config);
 		Assert.assertNotSame("Copy should return a new instance", config, result);
@@ -28,7 +27,6 @@ public class ConfigTest {
 
 	@Test
 	public void testCopyConfigurationWithProps() {
-		System.out.println("copyConfiguration");
 		Configuration config = Config.getInstance();
 		final String expected = "kungfu";
 		config.setProperty("kung.fu", expected);
