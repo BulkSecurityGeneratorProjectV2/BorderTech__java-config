@@ -10,7 +10,7 @@
 	<parent>
 		<groupId>com.github.bordertech.common</groupId>
 		<artifactId>qa-parent</artifactId>
-		<version>1.0.10</version>
+		<version>1.0.11</version>
 	</parent>
 
 	<packaging>jar</packaging>
