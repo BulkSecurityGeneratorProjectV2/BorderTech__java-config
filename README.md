@@ -9,14 +9,13 @@ Project configuration mechanism.
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.bordertech.config/config.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.bordertech.config%22%20AND%20a:%22config%22)
 
 # Why Use Config?
-TODO
+The `Config` class provides a standard mechanism java applications can use to access configuration data via the [Apache Commons Configuration](https://commons.apache.org/proper/commons-configuration/index.html) interface.
 
 # How Config Works
 The `Config` class is the central access point to the configuration mechanism, and is used to read or modify the
 current configuration.
 
-The library is configured using the `Apache Configuration API`. This allows developers to programmatically integrate
-the configuration with whatever mechanism is used to configure their applications.
+The library is configured using the [Apache Commons Configuration](https://commons.apache.org/proper/commons-configuration/index.html) interface. This allows developers to programmatically integrate the configuration with whatever mechanism is used to configure their applications.
 
 The default resources `Config` looks for are:-
  * `bordertech-defaults.properties` - framework defaults
@@ -32,5 +31,5 @@ The following properties can be set:-
 * `bordertech.config.resource.order` - order of resources to load into the configuration
 
 ## SPI
-'ConfigurationLoader' is the SPI interface for classes that can load a custom configuration.
+`ConfigurationLoader` is the SPI interface for classes that can load a custom configuration.
 
