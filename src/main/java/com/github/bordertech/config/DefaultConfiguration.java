@@ -63,6 +63,18 @@ public class DefaultConfiguration implements Configuration {
 	public static final String USE_SYSTEM_PROPERTIES = "bordertech.config.parameters.useSystemProperties";
 
 	/**
+	 * If merging System Properties this parameter controls if a system property will only overwrite an existing
+	 * property. The default is true.
+	 */
+	public static final String USE_SYSTEM_OVERWRITEONLY = "bordertech.config.parameters.useSystemOverWriteOnly";
+
+	/**
+	 * If merging System Properties, this parameter can be used to define a list of attribute prefixes that are allowed
+	 * to be merged. The default is allow all System Properties to be merged.
+	 */
+	public static final String USE_SYSTEM_PREFIXES = "bordertech.config.parameters.useSystemPrefixes";
+
+	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
 	 */
 	public static final String DUMP = "bordertech.config.parameters.dump.console";
@@ -251,7 +263,7 @@ public class DefaultConfiguration implements Configuration {
 
 		if (isUseSystemProperties()) {
 			recordMessage("Loading from system properties");
-			load(System.getProperties(), "System Properties", true);
+			mergeSystemProperties();
 		}
 
 		// Now perform variable substitution.
@@ -528,26 +540,44 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Load the properties from the given Properties object, recording the origin on those properties as being from the
-	 * given location.
-	 *
-	 * @param properties the properties to load from
-	 * @param location the location where the parameter was defined.
-	 * @param overwriteOnly if true, only properties that are already defined will be loaded
+	 * Merge the System Properties into Config.
 	 */
-	private void load(final Properties properties, final String location,
-			final boolean overwriteOnly) {
-		for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+	private void mergeSystemProperties() {
+
+		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, true);
+		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
+
+		for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
 
 			String key = (String) entry.getKey();
-			String already = get(key);
+			String value = (String) entry.getValue();
 
-			if (overwriteOnly && already == null && !INCLUDE.equals(key)) {
+			// Check for "include" keys (should not come from System Properties)
+			if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
 				continue;
 			}
 
-			String value = (String) entry.getValue();
-			load(key, value, location);
+			// Check allowed prefixes
+			if (!allowedPrefixes.isEmpty()) {
+				boolean match = false;
+				for (String prefix : allowedPrefixes) {
+					if (key.startsWith(prefix)) {
+						match = true;
+						break;
+					}
+				}
+				if (!match) {
+					continue;
+				}
+			}
+
+			// Check overwrite only
+			if (overWriteOnly && get(key) == null) {
+				continue;
+			}
+
+			// Load property
+			load(key, value, "System Properties");
 		}
 	}
 
