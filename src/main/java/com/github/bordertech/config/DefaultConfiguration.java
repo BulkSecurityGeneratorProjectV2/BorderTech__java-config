@@ -263,7 +263,7 @@ public class DefaultConfiguration implements Configuration {
 
 		if (isUseSystemProperties()) {
 			recordMessage("Loading from system properties");
-			mergeSystemProperties();
+			loadSystemProperties();
 		}
 
 		// Now perform variable substitution.
@@ -540,9 +540,9 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Merge the System Properties into Config.
+	 * Load the System Properties into Config.
 	 */
-	private void mergeSystemProperties() {
+	private void loadSystemProperties() {
 
 		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, true);
 		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
