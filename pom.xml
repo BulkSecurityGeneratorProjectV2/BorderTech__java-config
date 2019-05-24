@@ -50,6 +50,11 @@
 			<artifactId>commons-configuration</artifactId>
 			<version>1.10</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.9</version>
+		</dependency>
 		<!-- Commons config brings in servlet.api -->
 		<dependency>
 			<groupId>javax.servlet</groupId>
