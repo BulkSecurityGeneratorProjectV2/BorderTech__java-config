@@ -15,7 +15,7 @@ public class Touchfile {
 	/**
 	 * The touch file.
 	 */
-	private final File touchfile;
+	private final File file;
 
 	/**
 	 * Check interval in milli seconds.
@@ -41,10 +41,10 @@ public class Touchfile {
 			throw new IllegalArgumentException("A touch filename must be provided.");
 		}
 		this.filename = filename;
-		this.touchfile = new File(filename);
+		this.file = new File(filename);
 		this.checkInterval = checkInterval < 0 ? 0 : checkInterval;
 		this.lastChecked = System.currentTimeMillis();
-		this.lastModified = touchfile.lastModified();
+		this.lastModified = file.lastModified();
 	}
 
 	/**
@@ -61,7 +61,7 @@ public class Touchfile {
 		lastChecked = now;
 
 		// Has the file changed?
-		long modified = touchfile.lastModified();
+		long modified = file.lastModified();
 		if (lastModified == modified) {
 			// No Change
 			return false;

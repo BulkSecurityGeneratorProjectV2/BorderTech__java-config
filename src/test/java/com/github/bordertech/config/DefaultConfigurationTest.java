@@ -347,6 +347,17 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("key3", "value3", props);
 	}
 
+	@Test
+	public void testRefresh() {
+		String orig = "simplePropertyValue";
+		String newValue = "newvalue";
+		assertPropertyEquals(STRING_PROPERTY_KEY, orig);
+		config.setProperty(STRING_PROPERTY_KEY, newValue);
+		assertPropertyEquals(STRING_PROPERTY_KEY, newValue);
+		config.refresh();
+		assertPropertyEquals(STRING_PROPERTY_KEY, orig);
+	}
+
 	/**
 	 * Asserts that the configuration contains the given key/value.
 	 *

@@ -160,8 +160,7 @@ public final class Config {
 		// If we get here, then there is at least one listener who wants to be notified when a refresh occurs. The first
 		// step in this notification process is to create the PropertyChangeEvent object that will be sent to each of
 		// the registered PropertyChangeListeners.
-		//
-		// PropertyChangeEvent event = new PropertyChangeEvent(this, "propertiesRefresh", null, null);
+		// <code>PropertyChangeEvent event = new PropertyChangeEvent(this, "propertiesRefresh", null, null);</code>
 		//
 		// Finally, iterate through the complete set of PropertyChangeListeners and notify them that a change has
 		// occurred.
