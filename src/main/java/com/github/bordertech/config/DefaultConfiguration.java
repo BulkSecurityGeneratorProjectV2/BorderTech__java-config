@@ -808,7 +808,7 @@ public class DefaultConfiguration implements Configuration {
 		try {
 			substituting.add(aKey);
 
-			String value = (String) backing.get(aKey);
+			String value = backing.get(aKey);
 			if (value == null) {
 				return madeChange;
 			}
@@ -1400,12 +1400,12 @@ public class DefaultConfiguration implements Configuration {
 	protected String get(final String key) {
 		// Check environment property
 		if (useEnvironmentKey(key)) {
-			String result = (String) backing.get(getEnvironmentKey(key));
+			String result = backing.get(getEnvironmentKey(key));
 			if (result != null) {
 				return result;
 			}
 		}
-		return (String) backing.get(key);
+		return backing.get(key);
 	}
 
 	/**
@@ -1449,7 +1449,7 @@ public class DefaultConfiguration implements Configuration {
 	 * Check if the environment property has been set.
 	 */
 	protected void checkEnvironmentProperty() {
-		String env = (String) backing.get(ENVIRONMENT_PROPERTY);
+		String env = backing.get(ENVIRONMENT_PROPERTY);
 		currentEnvironment = (env == null || env.isEmpty()) ? null : env;
 	}
 
