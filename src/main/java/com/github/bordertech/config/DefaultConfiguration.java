@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.MapConfiguration;
@@ -123,6 +124,11 @@ public class DefaultConfiguration implements Configuration {
 	@Deprecated
 	private static final String LEGACY_SYSTEM_PARAMETERS_PREFIX = "bordertech.wcomponents.parameters.system.";
 
+	/**
+	 * The prefix output before log messages.
+	 */
+	private static final String LOG_PREFIX = "PARAM_DEBUG: ";
+
 	// -----------------------------------------------------------------------------------------------------------------
 	// State used during loading of parameters
 	/**
@@ -146,10 +152,11 @@ public class DefaultConfiguration implements Configuration {
 	 * Holds the current environment suffix (if set).
 	 */
 	private String currentEnvironment = null;
+
 	/**
 	 * Our backing store is a Map object.
 	 */
-	private Map<String, Object> backing;
+	private Map<String, String> backing;
 
 	/**
 	 * Explicitly cache booleans for flag look-up speed.
@@ -282,9 +289,10 @@ public class DefaultConfiguration implements Configuration {
 			// Do nothing while loop
 		} while (substitute());
 
+		log(getDumpHeader());
 		if (isDumpProperties()) {
-			log(getDebuggingInfo());
-			log(getMessages());
+			log(getDumpMessages());
+			log(getDumpPropertyDetails());
 		}
 
 		// We don't want the StringBuilder hanging around after 'DUMP'.
@@ -316,9 +324,9 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * @return debugging information for logging on application start-up.
+	 * @return debugging information for logging
 	 */
-	private String getDebuggingInfo() {
+	private String getDumpHeader() {
 		File cwd = new File(".");
 		String workingDir;
 
@@ -335,25 +343,65 @@ public class DefaultConfiguration implements Configuration {
 			ProtectionDomain domain = getClass().getProtectionDomain();
 			if (domain != null) {
 				CodeSource codesource = domain.getCodeSource();
-				codesourceStr = codesource == null ? "" : " code location of ConfigImpl: " + codesource.getLocation();
+				codesourceStr = codesource == null ? "" : " code location of Config implementation: " + codesource.getLocation();
 			}
 		} catch (Exception failed) {
-			codesourceStr = "Could not determine location of ConfigImpl [" + failed.getMessage() + "].";
+			codesourceStr = "Could not determine location of Config implementation [" + failed.getMessage() + "].";
 		}
 
 		StringBuilder info = new StringBuilder();
 
-		info.append("----Parameters start----");
+		info.append("----Config: Info start----");
 		info.append(codesourceStr);
 		info.append("\nWorking directory is ");
 		info.append(workingDir);
-		info.append("\nTo dump all params to stdout set ");
+		info.append("\nTo dump all params set ");
 		info.append(DUMP);
 		info.append(" to true; currently value is ");
 		info.append(isDumpProperties());
 		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog.");
 		info.append("\nSimpleLog writes to System.err by default.");
-		info.append("\n----Parameters end------");
+		info.append("\n----Config: Info end------");
+
+		return info.toString();
+	}
+
+	/**
+	 * @return dump of all properties loaded with their location history
+	 */
+	private String getDumpPropertyDetails() {
+
+		StringBuilder info = new StringBuilder();
+
+		info.append("----Config: Properties loaded start----\n");
+
+		for (String key : new TreeSet<>(backing.keySet())) {
+			String value = backing.get(key);
+			String history = locations.get(key);
+			info.append(LOG_PREFIX);
+			info.append(key);
+			info.append(" = ");
+			info.append(value);
+			info.append(" (");
+			info.append(history);
+			info.append(")\n");
+		}
+
+		info.append("----Config: Properties loaded end----\n");
+
+		return info.toString();
+	}
+
+	/**
+	 * @return debugging load messages
+	 */
+	private String getDumpMessages() {
+
+		StringBuilder info = new StringBuilder();
+
+		info.append("----Config: Load messages start----\n");
+		info.append(messages.toString());
+		info.append("\n----Config: Load messages end----\n");
 
 		return info.toString();
 	}
@@ -585,8 +633,7 @@ public class DefaultConfiguration implements Configuration {
 				return loader;
 			} else {
 				// Rats - this should not happen with a sane application server
-				recordMessage(
-						"Whoa - is visible to context class loader, but it gives a different class");
+				recordMessage("Whoa - is visible to context class loader, but it gives a different class");
 				// If this happens we need to investigate further, but for the time being we'll use the context class
 				// loader
 				return loader;
@@ -713,13 +760,6 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private void recordMessage(final String msg) {
 		messages.append(msg).append('\n');
-	}
-
-	/**
-	 * @return the set of logged messages.
-	 */
-	private String getMessages() {
-		return messages.toString();
 	}
 
 	/**
@@ -1303,7 +1343,7 @@ public class DefaultConfiguration implements Configuration {
 
 		int length = prefix.length();
 
-		for (Map.Entry<String, Object> entry : backing.entrySet()) {
+		for (Map.Entry<String, String> entry : backing.entrySet()) {
 
 			String key = entry.getKey();
 
@@ -1315,7 +1355,7 @@ public class DefaultConfiguration implements Configuration {
 					newKey = key.substring(length);
 				}
 
-				sub.setProperty(newKey, (String) entry.getValue());
+				sub.setProperty(newKey, entry.getValue());
 			}
 		}
 
@@ -1396,8 +1436,7 @@ public class DefaultConfiguration implements Configuration {
 			throw new IllegalArgumentException("value parameter can not be null.");
 		}
 
-		recordMessage(
-				"modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
+		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
 
 		runtimeProperties.setProperty(name, value);
 
