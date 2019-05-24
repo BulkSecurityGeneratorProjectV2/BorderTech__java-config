@@ -49,20 +49,22 @@ import org.apache.commons.logging.impl.SimpleLog;
  */
 public class DefaultConfiguration implements Configuration {
 
-	// Use SimpleLog that writes to System.Err by default.
+	/**
+	 * Logger for debug information.
+	 */
 	private static final Log LOG = new SimpleLog("DefaultConfig");
 
 	/**
 	 * If this parameter is defined, it is treated as a comma-separated list of additional resources to load. The
 	 * include is processed immediately.
 	 */
-	private static final String INCLUDE = "include";
+	public static final String INCLUDE = "include";
 
 	/**
 	 * If this parameter is defined, it is taken as a (comma-separated) resource to load. The resource is loaded after
 	 * the current (set of) resources is loaded.
 	 */
-	private static final String INCLUDE_AFTER = "includeAfter";
+	public static final String INCLUDE_AFTER = "includeAfter";
 
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
@@ -289,10 +291,10 @@ public class DefaultConfiguration implements Configuration {
 			// Do nothing while loop
 		} while (substitute());
 
-		log(getDumpHeader());
+		LOG.info(getDumpHeader());
 		if (isDumpProperties()) {
-			log(getDumpMessages());
-			log(getDumpPropertyDetails());
+			LOG.info(getDumpMessages());
+			LOG.info(getDumpPropertyDetails());
 		}
 
 		// We don't want the StringBuilder hanging around after 'DUMP'.
@@ -343,7 +345,7 @@ public class DefaultConfiguration implements Configuration {
 			ProtectionDomain domain = getClass().getProtectionDomain();
 			if (domain != null) {
 				CodeSource codesource = domain.getCodeSource();
-				codesourceStr = codesource == null ? "" : " code location of Config implementation: " + codesource.getLocation();
+				codesourceStr = codesource == null ? "" : "Code location of Config implementation: " + codesource.getLocation();
 			}
 		} catch (Exception failed) {
 			codesourceStr = "Could not determine location of Config implementation [" + failed.getMessage() + "].";
@@ -351,17 +353,16 @@ public class DefaultConfiguration implements Configuration {
 
 		StringBuilder info = new StringBuilder();
 
-		info.append("----Config: Info start----");
+		info.append("----Config: Info start----\n");
 		info.append(codesourceStr);
-		info.append("\nWorking directory is ");
+		info.append("\nWorking directory is: ");
 		info.append(workingDir);
 		info.append("\nTo dump all params set ");
 		info.append(DUMP);
-		info.append(" to true; currently value is ");
+		info.append(" to true; current value is ");
 		info.append(isDumpProperties());
-		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog.");
-		info.append("\nSimpleLog writes to System.err by default.");
-		info.append("\n----Config: Info end------");
+		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog that writes to System.err by default.");
+		info.append("\n----Config: Info end------\n");
 
 		return info.toString();
 	}
@@ -401,7 +402,7 @@ public class DefaultConfiguration implements Configuration {
 
 		info.append("----Config: Load messages start----\n");
 		info.append(messages.toString());
-		info.append("\n----Config: Load messages end----\n");
+		info.append("----Config: Load messages end----\n");
 
 		return info.toString();
 	}
@@ -908,12 +909,30 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Log the message.
-	 *
-	 * @param message the message to log.
+	 * Reload the properties to their initial state.
 	 */
-	private static void log(final String message) {
-		LOG.info(message);
+	public void refresh() {
+		synchronized (lockObject) {
+			// Now reset this object back to its initial state.
+			initialiseInstanceVariables();
+
+			// Load all the parameters from scratch.
+			load();
+
+			// Finally, notify all the listeners that have registered with this object that a change in properties has
+			// occurred.
+			Config.notifyListeners();
+		}
+	}
+
+	/**
+	 * @return a copy of the current properties
+	 */
+	public Properties getProperties() {
+		// Don't return the backing directly; make a copy so that the caller can't change us...
+		Properties copy = new Properties();
+		copy.putAll(backing);
+		return copy;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -1312,23 +1331,13 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * @return a copy of the current properties
-	 */
-	public Properties getProperties() {
-		// Don't return the backing directly; make a copy so that the caller can't change us...
-		Properties copy = new Properties();
-		copy.putAll(backing);
-		return copy;
-	}
-
-	/**
 	 * Returns a sub-set of the parameters contained in this configuration.
 	 *
 	 * @param prefix the prefix of the parameter keys which should be included.
 	 * @param truncate if true, the prefix is truncated in the returned properties.
 	 * @return the properties sub-set, may be empty.
 	 */
-	public Properties getSubProperties(final String prefix, final boolean truncate) {
+	protected Properties getSubProperties(final String prefix, final boolean truncate) {
 		String cacheKey = truncate + prefix;
 		Properties sub = subcontextCache.get(cacheKey);
 
@@ -1374,7 +1383,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param defolt the default value if key not available
 	 * @return the property value or null
 	 */
-	public String get(final String key, final String defolt) {
+	protected String get(final String key, final String defolt) {
 		String result = get(key);
 		if (result == null) {
 			return defolt;
@@ -1388,7 +1397,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param key the property key
 	 * @return the property value or null
 	 */
-	public String get(final String key) {
+	protected String get(final String key) {
 		// Check environment property
 		if (useEnvironmentKey(key)) {
 			String result = (String) backing.get(getEnvironmentKey(key));
@@ -1400,30 +1409,13 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Reload the properties to their initial state.
-	 */
-	public void refresh() {
-		synchronized (lockObject) {
-			// Now reset this object back to its initial state.
-			initialiseInstanceVariables();
-
-			// Load all the parameters from scratch.
-			load();
-
-			// Finally, notify all the listeners that have registered with this object that a change in properties has
-			// occurred.
-			Config.notifyListeners();
-		}
-	}
-
-	/**
 	 * Add or Modify a property at runtime.
 	 *
 	 * @param name the property name
 	 * @param value the property value
 	 *
 	 */
-	public void addOrModifyProperty(final String name, final String value) {
+	protected void addOrModifyProperty(final String name, final String value) {
 		if (name == null) {
 			throw new IllegalArgumentException("name parameter can not be null.");
 		}
