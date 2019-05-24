@@ -3,8 +3,10 @@ Project configuration mechanism.
 
 ## Status
 [![Build Status](https://travis-ci.com/BorderTech/java-config.svg?branch=master)](https://travis-ci.com/BorderTech/java-config)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=alert_status)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=coverage)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/738a3851c483470da86ffe1d047f344c)](https://www.codacy.com/app/BorderTech/java-config?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=BorderTech/java-config&amp;utm_campaign=Badge_Grade)
-[![Codacy Badge](https://api.codacy.com/project/badge/Coverage/738a3851c483470da86ffe1d047f344c)](https://www.codacy.com/app/BorderTech/java-config?utm_source=github.com&utm_medium=referral&utm_content=BorderTech/java-config&utm_campaign=Badge_Coverage)
 [![Javadocs](https://www.javadoc.io/badge/com.github.bordertech.config/config.svg)](https://www.javadoc.io/doc/com.github.bordertech.config/config)
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.bordertech.config/config.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.bordertech.config%22%20AND%20a:%22config%22)
 

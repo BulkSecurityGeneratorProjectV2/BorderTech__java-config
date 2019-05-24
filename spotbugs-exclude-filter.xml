@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
 
-	<!-- False Positive on Loading Property Filenames -->
+	<!-- False Positives -->
 	<Match>
-		<Bug pattern="PATH_TRAVERSAL_IN" />
+		<Bug pattern="PATH_TRAVERSAL_IN,PMB_POSSIBLE_MEMORY_BLOAT,FCCD_FIND_CLASS_CIRCULAR_DEPENDENCY,MUI_CONTAINSKEY_BEFORE_GET" />
 	</Match>
 
 </FindBugsFilter>

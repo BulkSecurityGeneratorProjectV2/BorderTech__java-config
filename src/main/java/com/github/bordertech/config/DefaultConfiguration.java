@@ -28,9 +28,14 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.impl.SimpleLog;
 
 /**
  * <p>
@@ -45,22 +50,39 @@ import org.apache.commons.configuration.MapConfiguration;
 public class DefaultConfiguration implements Configuration {
 
 	/**
+	 * Logger for debug information.
+	 */
+	private static final Log LOG = new SimpleLog("DefaultConfig");
+
+	/**
 	 * If this parameter is defined, it is treated as a comma-separated list of additional resources to load. The
 	 * include is processed immediately.
 	 */
-	private static final String INCLUDE = "include";
+	public static final String INCLUDE = "include";
 
 	/**
 	 * If this parameter is defined, it is taken as a (comma-separated) resource to load. The resource is loaded after
 	 * the current (set of) resources is loaded.
 	 */
-	private static final String INCLUDE_AFTER = "includeAfter";
+	public static final String INCLUDE_AFTER = "includeAfter";
 
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
 	 * end of the loading process.
 	 */
 	public static final String USE_SYSTEM_PROPERTIES = "bordertech.config.parameters.useSystemProperties";
+
+	/**
+	 * If merging System Properties this parameter controls if a system property will only overwrite an existing
+	 * property. The default is true.
+	 */
+	public static final String USE_SYSTEM_OVERWRITEONLY = "bordertech.config.parameters.useSystemOverWriteOnly";
+
+	/**
+	 * If merging System Properties, this parameter can be used to define a list of attribute prefixes that are allowed
+	 * to be merged. The default is allow all System Properties to be merged.
+	 */
+	public static final String USE_SYSTEM_PREFIXES = "bordertech.config.parameters.useSystemPrefixes";
 
 	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
@@ -81,12 +103,16 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
 	 * end of the loading process.
+	 *
+	 * @deprecated use {@link #USE_SYSTEM_PROPERTIES} instead
 	 */
 	@Deprecated
 	private static final String LEGACY_USE_SYSTEM_PROPERTIES = "bordertech.wcomponents.parameters.useSystemProperties";
 
 	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
+	 *
+	 * @deprecated use {@link #DUMP} property instead
 	 */
 	@Deprecated
 	private static final String LEGACY_DUMP = "bordertech.wcomponents.parameters.dump.console";
@@ -94,17 +120,23 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Parameters with this prefix will be dumped into the System parameters. This feature is for handling recalcitrant
 	 * 3rd party software only - not for general use!!!
+	 *
+	 * @deprecated use {@link #SYSTEM_PARAMETERS_PREFIX} instead
 	 */
 	@Deprecated
 	private static final String LEGACY_SYSTEM_PARAMETERS_PREFIX = "bordertech.wcomponents.parameters.system.";
 
+	/**
+	 * The prefix output before log messages.
+	 */
+	private static final String LOG_PREFIX = "PARAM_DEBUG: ";
+
 	// -----------------------------------------------------------------------------------------------------------------
 	// State used during loading of parameters
 	/**
-	 * The messages logged during loading of the configuration. We can't depend on a logging framework to log errors, as
-	 * this class is typically used to configure the logging.
+	 * The messages logged during loading of the configuration. \
 	 */
-	private final StringBuffer messages = new StringBuffer();
+	private final StringBuilder messages = new StringBuilder();
 
 	/**
 	 * The resource being loaded. This is used for the relative form of resource loading.
@@ -122,10 +154,11 @@ public class DefaultConfiguration implements Configuration {
 	 * Holds the current environment suffix (if set).
 	 */
 	private String currentEnvironment = null;
+
 	/**
 	 * Our backing store is a Map object.
 	 */
-	private Map<String, Object> backing;
+	private Map<String, String> backing;
 
 	/**
 	 * Explicitly cache booleans for flag look-up speed.
@@ -231,7 +264,6 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Load the backing from the properties file visible to our classloader, plus the filesystem.
 	 */
-	@SuppressWarnings("checkstyle:emptyblock")
 	private void load() {
 		recordMessage("Loading parameters");
 		File cwd = new File(".");
@@ -251,7 +283,7 @@ public class DefaultConfiguration implements Configuration {
 
 		if (isUseSystemProperties()) {
 			recordMessage("Loading from system properties");
-			load(System.getProperties(), "System Properties", true);
+			loadSystemProperties();
 		}
 
 		// Now perform variable substitution.
@@ -259,13 +291,13 @@ public class DefaultConfiguration implements Configuration {
 			// Do nothing while loop
 		} while (substitute());
 
+		LOG.info(getDumpHeader());
 		if (isDumpProperties()) {
-			// Can't use logging infrastructure here, so dump to console
-			log(getDebuggingInfo());
-			log(getMessages());
+			LOG.info(getDumpMessages());
+			LOG.info(getDumpPropertyDetails());
 		}
 
-		// We don't want the StringBuffer hanging around after 'DUMP'.
+		// We don't want the StringBuilder hanging around after 'DUMP'.
 		clearMessages();
 
 		// Now move any parameters with the system parameters prefix into the real system parameters.
@@ -294,11 +326,9 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * @return debugging information for logging on application start-up.
+	 * @return debugging information for logging
 	 */
-	private String getDebuggingInfo() {
-		final String paramsFile = "log4j.appender.PARAMS.File";
-
+	private String getDumpHeader() {
 		File cwd = new File(".");
 		String workingDir;
 
@@ -315,25 +345,64 @@ public class DefaultConfiguration implements Configuration {
 			ProtectionDomain domain = getClass().getProtectionDomain();
 			if (domain != null) {
 				CodeSource codesource = domain.getCodeSource();
-				codesourceStr = codesource == null ? "" : " code location of ConfigImpl: " + codesource.getLocation();
+				codesourceStr = codesource == null ? "" : "Code location of Config implementation: " + codesource.getLocation();
 			}
 		} catch (Exception failed) {
-			codesourceStr = "Could not determine location of ConfigImpl [" + failed.getMessage() + "].";
+			codesourceStr = "Could not determine location of Config implementation [" + failed.getMessage() + "].";
 		}
 
 		StringBuilder info = new StringBuilder();
 
-		info.append("----Parameters start----");
+		info.append("----Config: Info start----\n");
 		info.append(codesourceStr);
-		info.append("\nWorking directory is ");
+		info.append("\nWorking directory is: ");
 		info.append(workingDir);
-		info.append("\nParameters have loaded, there is a full parameter dump in log4j FILE appender at ");
-		info.append(get(paramsFile));
-		info.append("\nTo dump all params to stdout set ");
+		info.append("\nTo dump all params set ");
 		info.append(DUMP);
-		info.append(" to true; currently value is ");
+		info.append(" to true; current value is ");
 		info.append(isDumpProperties());
-		info.append("\n----Parameters end------");
+		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog that writes to System.err by default.");
+		info.append("\n----Config: Info end------\n");
+
+		return info.toString();
+	}
+
+	/**
+	 * @return dump of all properties loaded with their location history
+	 */
+	private String getDumpPropertyDetails() {
+
+		StringBuilder info = new StringBuilder();
+
+		info.append("----Config: Properties loaded start----\n");
+
+		for (String key : new TreeSet<>(backing.keySet())) {
+			String value = backing.get(key);
+			String history = locations.get(key);
+			info.append(LOG_PREFIX);
+			info.append(key);
+			info.append(" = ");
+			info.append(value);
+			info.append(" (");
+			info.append(history);
+			info.append(")\n");
+		}
+
+		info.append("----Config: Properties loaded end----\n");
+
+		return info.toString();
+	}
+
+	/**
+	 * @return debugging load messages
+	 */
+	private String getDumpMessages() {
+
+		StringBuilder info = new StringBuilder();
+
+		info.append("----Config: Load messages start----\n");
+		info.append(messages.toString());
+		info.append("----Config: Load messages end----\n");
 
 		return info.toString();
 	}
@@ -344,7 +413,6 @@ public class DefaultConfiguration implements Configuration {
 	 *
 	 * @param resourceName the path of the resource to load from.
 	 */
-	@SuppressWarnings("checkstyle:emptyblock")
 	private void loadTop(final String resourceName) {
 		try {
 			resources.push(resourceName);
@@ -357,6 +425,7 @@ public class DefaultConfiguration implements Configuration {
 			if (includes != null) {
 				// First, do substitution on the INCLUDE_AFTER
 				do {
+					// Looping
 				} while (substitute(INCLUDE_AFTER));
 
 				// Now split and process
@@ -377,84 +446,31 @@ public class DefaultConfiguration implements Configuration {
 	 * @param resourceName the path of the resource to load from.
 	 */
 	private void load(final String resourceName) {
+
 		boolean found = false;
 
 		try {
 			resources.push(resourceName);
 
-			// Try classloader - load the resources in reverse order of the enumeration.  Since later-loaded resources
-			// override earlier-loaded ones, this better corresponds to the usual classpath behaviour.
-			ClassLoader classloader = getParamsClassLoader();
-			List<URL> urls = new ArrayList<>();
-
-			for (Enumeration<URL> res = classloader.getResources(resourceName); res.
-					hasMoreElements();) {
-				urls.add(res.nextElement());
-			}
-
-			recordMessage("Resource " + resourceName + " was found  " + urls.size() + " times");
-
-			// Sometimes the same URL will crop up several times (because of redundant entries in classpaths).  Also,
-			// sometimes the same file appears under several URLS (because it's packaged into a jar and also a classes
-			// directory, perhaps). In these circumstances we really only want to load the resource once - we load the
-			// first one and then ignore later ones.
-			Map<String, String> loadedFiles = new HashMap<>();
-
-			// Build up a list of the byte arrays from the files that we then process.
-			List<byte[]> contentsList = new ArrayList<>();
-			List<URL> urlList = new ArrayList<>();
-
-			// This processes from the front-of-classpath to end-of-classpath since end-of-classpath ones appear last in
-			// the enumeration
-			for (int i = 0; i < urls.size(); i++) {
-				URL url = urls.get(i);
+			// Load the resource/s from the class loader
+			List<URL> urls = findClassLoaderResources(resourceName);
+			if (!urls.isEmpty()) {
 				found = true;
-
-				// Load the contents of the resource, for comparison with existing resources.
-				byte[] urlContentBytes;
-				try (InputStream urlContentStream = url.openStream(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-					copyStream(urlContentStream, baos, 2048);
-					urlContentBytes = baos.toByteArray();
-				}
-				String urlContent = new String(urlContentBytes, StandardCharsets.UTF_8);
-
-				// Check if we have already loaded this file.
-				if (loadedFiles.containsKey(urlContent)) {
-					recordMessage("Skipped url " + url + " - duplicate of " + loadedFiles.get(urlContent));
-					continue;
-				}
-
-				loadedFiles.put(urlContent, url.toString());
-				contentsList.add(urlContentBytes);
-				urlList.add(url);
+				List<Pair<URL, byte[]>> contents = getResourceContents(urls);
+				loadResourceContents(contents);
 			}
 
-			for (int i = contentsList.size() - 1; i >= 0; i--) {
-				byte[] buff = contentsList.get(i);
-				URL url = urlList.get(i);
-				recordMessage("Loading from url " + url + "...");
-				ByteArrayInputStream in = new ByteArrayInputStream(buff);
-
-				// Use the "IncludeProperties" to load properties into us one at a time....
-				IncludeProperties properties = new IncludeProperties(url.toString());
-				properties.load(in);
-			}
-
+			// Load the resource as a FILE (if exists)
 			File file = new File(resourceName);
-
-			// Don't reload the file in the working directory if we are in the home directory.
 			if (file.exists()) {
-				recordMessage("Loading from file " + filename(file) + "...");
 				found = true;
-
-				// Use the "IncludeProperties" to load properties into us, one at a time....
-				IncludeProperties properties = new IncludeProperties("file:" + filename(file));
-				properties.load(new BufferedInputStream(new FileInputStream(file)));
+				loadFileResource(file);
 			}
 
 			if (!found) {
 				recordMessage("Did not find resource " + resourceName);
 			}
+
 		} catch (IOException | IllegalArgumentException ex) {
 			// Most likely a "Malformed uxxxx encoding." error, which is
 			// usually caused by a developer forgetting to escape backslashes
@@ -462,6 +478,115 @@ public class DefaultConfiguration implements Configuration {
 		} finally {
 			resources.pop();
 		}
+	}
+
+	/**
+	 * Find the resources from the class loader as there maybe more than one.
+	 *
+	 * @param resourceName the resource name to load
+	 * @return the list of URLs from the class loader
+	 * @throws IOException an IO Exception has occurred
+	 */
+	private List<URL> findClassLoaderResources(final String resourceName) throws IOException {
+
+		// Try classloader - load the resources in reverse order of the enumeration.  Since later-loaded resources
+		// override earlier-loaded ones, this better corresponds to the usual classpath behaviour.
+		ClassLoader classloader = getParamsClassLoader();
+		recordMessage("Using classloader " + classloader);
+
+		List<URL> urls = new ArrayList<>();
+		for (Enumeration<URL> res = classloader.getResources(resourceName); res.hasMoreElements();) {
+			urls.add(res.nextElement());
+		}
+		recordMessage("Resource " + resourceName + " was found  " + urls.size() + " times");
+
+		return urls;
+	}
+
+	/**
+	 * Retrieve the resource contents.
+	 *
+	 * @param urls the list of URLS to load
+	 * @return a list of URLs and resource contents
+	 * @throws IOException an IO Exception has occurred
+	 */
+	private List<Pair<URL, byte[]>> getResourceContents(final List<URL> urls) throws IOException {
+
+		// Sometimes the same URL will crop up several times (because of redundant entries in classpaths).  Also,
+		// sometimes the same file appears under several URLS (because it's packaged into a jar and also a classes
+		// directory, perhaps). In these circumstances we really only want to load the resource once - we load the
+		// first one and then ignore later ones.
+		Map<String, String> loadedFiles = new HashMap<>();
+
+		// Build up a list of the byte arrays from the files that we then process.
+		List<Pair<URL, byte[]>> contentsList = new ArrayList<>();
+
+		// This processes from the front-of-classpath to end-of-classpath since end-of-classpath ones appear last in
+		// the enumeration
+		for (URL url : urls) {
+
+			// Load the contents of the resource, for comparison with existing resources.
+			byte[] urlContentBytes;
+			try (InputStream urlContentStream = url.openStream(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+				copyStream(urlContentStream, baos, 2048);
+				urlContentBytes = baos.toByteArray();
+			}
+			String urlContent = new String(urlContentBytes, StandardCharsets.UTF_8);
+
+			// Check if we have already loaded this file.
+			if (loadedFiles.containsKey(urlContent)) {
+				recordMessage("Skipped url " + url + " - duplicate of " + loadedFiles.get(urlContent));
+				continue;
+			}
+
+			loadedFiles.put(urlContent, url.toString());
+
+			contentsList.add(new ImmutablePair<>(url, urlContentBytes));
+		}
+
+		return contentsList;
+
+	}
+
+	/**
+	 * Load the resource contents.
+	 *
+	 * @param contentsList the list of URLs and resource content
+	 * @throws IOException an IO Exception occurred
+	 */
+	private void loadResourceContents(final List<Pair<URL, byte[]>> contentsList) throws IOException {
+
+		// Load in reverse order
+		for (int i = contentsList.size() - 1; i >= 0; i--) {
+			URL url = contentsList.get(i).getLeft();
+			byte[] buff = contentsList.get(i).getRight();
+			recordMessage("Loading from url " + url + "...");
+			try (ByteArrayInputStream in = new ByteArrayInputStream(buff)) {
+				// Use the "IncludeProperties" to load properties into us one at a time....
+				IncludeProperties properties = new IncludeProperties(url.toString());
+				properties.load(in);
+			}
+		}
+
+	}
+
+	/**
+	 * Load the file resource.
+	 *
+	 * @param file the file to load
+	 * @throws IOException an IO Exception occurred
+	 */
+	private void loadFileResource(final File file) throws IOException {
+
+		recordMessage("Loading from file " + filename(file) + "...");
+
+		// Use the "IncludeProperties" to load properties into us, one at a time....
+		IncludeProperties properties = new IncludeProperties("file:" + filename(file));
+		try (FileInputStream fin = new FileInputStream(file);
+				BufferedInputStream bin = new BufferedInputStream(fin)) {
+			properties.load(bin);
+		}
+
 	}
 
 	/**
@@ -496,7 +621,6 @@ public class DefaultConfiguration implements Configuration {
 		if (loader == null) {
 			recordMessage("No context classloader had been set");
 			loader = getClass().getClassLoader();
-			recordMessage("Using classloader " + loader);
 			return loader;
 		}
 
@@ -506,15 +630,11 @@ public class DefaultConfiguration implements Configuration {
 
 			if (test == getClass()) {
 				recordMessage("Visible to ContextClassLoader");
-				recordMessage("Using classloader " + loader);
-
 				// Beauty - context class loader looks good
 				return loader;
 			} else {
 				// Rats - this should not happen with a sane application server
-				recordMessage(
-						"Whoa - is visible to context class loader, but it gives a different class");
-
+				recordMessage("Whoa - is visible to context class loader, but it gives a different class");
 				// If this happens we need to investigate further, but for the time being we'll use the context class
 				// loader
 				return loader;
@@ -522,33 +642,64 @@ public class DefaultConfiguration implements Configuration {
 		} catch (ClassNotFoundException ex) {
 			recordMessage("Not visible to context class loader (" + loader + "):" + ex.getMessage());
 			loader = getClass().getClassLoader();
-			recordMessage("Using classloader " + loader);
 			return loader;
 		}
 	}
 
 	/**
-	 * Load the properties from the given Properties object, recording the origin on those properties as being from the
-	 * given location.
-	 *
-	 * @param properties the properties to load from
-	 * @param location the location where the parameter was defined.
-	 * @param overwriteOnly if true, only properties that are already defined will be loaded
+	 * Load the System Properties into Config.
 	 */
-	private void load(final Properties properties, final String location,
-			final boolean overwriteOnly) {
-		for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+	private void loadSystemProperties() {
+
+		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, true);
+		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
+
+		for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
 
 			String key = (String) entry.getKey();
-			String already = get(key);
+			String value = (String) entry.getValue();
 
-			if (overwriteOnly && already == null && !INCLUDE.equals(key)) {
+			// Check for "include" keys (should not come from System Properties)
+			if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
 				continue;
 			}
 
-			String value = (String) entry.getValue();
-			load(key, value, location);
+			// Check allowed prefixes
+			if (!isAllowedKeyPrefix(allowedPrefixes, key)) {
+				continue;
+			}
+
+			// Check overwrite only
+			if (overWriteOnly && get(key) == null) {
+				continue;
+			}
+
+			// Load property
+			load(key, value, "System Properties");
 		}
+	}
+
+	/**
+	 * Check allowed prefixes.
+	 *
+	 * @param allowedPrefixes the list of allowed prefixes
+	 * @param key the key to check
+	 * @return true if the key is an allowed prefix
+	 */
+	private boolean isAllowedKeyPrefix(final List<String> allowedPrefixes, final String key) {
+
+		// If no prefixes defined, then ALL keys are allowed
+		if (allowedPrefixes == null || allowedPrefixes.isEmpty()) {
+			return true;
+		}
+
+		// Check allowed prefixes
+		for (String prefix : allowedPrefixes) {
+			if (key.startsWith(prefix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -600,7 +751,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param throwable the exception to log.
 	 */
 	private void recordException(final Throwable throwable) {
-		throwable.printStackTrace();
+		LOG.error("Error loading config. " + throwable.getMessage(), throwable);
 	}
 
 	/**
@@ -610,13 +761,6 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private void recordMessage(final String msg) {
 		messages.append(msg).append('\n');
-	}
-
-	/**
-	 * @return the set of logged messages.
-	 */
-	private String getMessages() {
-		return messages.toString();
 	}
 
 	/**
@@ -664,7 +808,10 @@ public class DefaultConfiguration implements Configuration {
 		try {
 			substituting.add(aKey);
 
-			String value = (String) backing.get(aKey);
+			String value = backing.get(aKey);
+			if (value == null) {
+				return madeChange;
+			}
 
 			int start = findStartVariable(value);
 
@@ -762,13 +909,30 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * The parameters implementation can not depend on a logging framework to log errors, as it is typically used to
-	 * configure logging.
-	 *
-	 * @param message the message to log.
+	 * Reload the properties to their initial state.
 	 */
-	private static void log(final String message) {
-		System.out.println(message);
+	public void refresh() {
+		synchronized (lockObject) {
+			// Now reset this object back to its initial state.
+			initialiseInstanceVariables();
+
+			// Load all the parameters from scratch.
+			load();
+
+			// Finally, notify all the listeners that have registered with this object that a change in properties has
+			// occurred.
+			Config.notifyListeners();
+		}
+	}
+
+	/**
+	 * @return a copy of the current properties
+	 */
+	public Properties getProperties() {
+		// Don't return the backing directly; make a copy so that the caller can't change us...
+		Properties copy = new Properties();
+		copy.putAll(backing);
+		return copy;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -1167,23 +1331,13 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * @return a copy of the current properties
-	 */
-	public Properties getProperties() {
-		// Don't return the backing directly; make a copy so that the caller can't change us...
-		Properties copy = new Properties();
-		copy.putAll(backing);
-		return copy;
-	}
-
-	/**
 	 * Returns a sub-set of the parameters contained in this configuration.
 	 *
 	 * @param prefix the prefix of the parameter keys which should be included.
 	 * @param truncate if true, the prefix is truncated in the returned properties.
 	 * @return the properties sub-set, may be empty.
 	 */
-	public Properties getSubProperties(final String prefix, final boolean truncate) {
+	protected Properties getSubProperties(final String prefix, final boolean truncate) {
 		String cacheKey = truncate + prefix;
 		Properties sub = subcontextCache.get(cacheKey);
 
@@ -1198,7 +1352,7 @@ public class DefaultConfiguration implements Configuration {
 
 		int length = prefix.length();
 
-		for (Map.Entry<String, Object> entry : backing.entrySet()) {
+		for (Map.Entry<String, String> entry : backing.entrySet()) {
 
 			String key = entry.getKey();
 
@@ -1210,7 +1364,7 @@ public class DefaultConfiguration implements Configuration {
 					newKey = key.substring(length);
 				}
 
-				sub.setProperty(newKey, (String) entry.getValue());
+				sub.setProperty(newKey, entry.getValue());
 			}
 		}
 
@@ -1229,7 +1383,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param defolt the default value if key not available
 	 * @return the property value or null
 	 */
-	public String get(final String key, final String defolt) {
+	protected String get(final String key, final String defolt) {
 		String result = get(key);
 		if (result == null) {
 			return defolt;
@@ -1243,32 +1397,15 @@ public class DefaultConfiguration implements Configuration {
 	 * @param key the property key
 	 * @return the property value or null
 	 */
-	public String get(final String key) {
+	protected String get(final String key) {
 		// Check environment property
 		if (useEnvironmentKey(key)) {
-			String result = (String) backing.get(getEnvironmentKey(key));
+			String result = backing.get(getEnvironmentKey(key));
 			if (result != null) {
 				return result;
 			}
 		}
-		return (String) backing.get(key);
-	}
-
-	/**
-	 * Reload the properties to their initial state.
-	 */
-	public void refresh() {
-		synchronized (lockObject) {
-			// Now reset this object back to its initial state.
-			initialiseInstanceVariables();
-
-			// Load all the parameters from scratch.
-			load();
-
-			// Finally, notify all the listeners that have registered with this object that a change in properties has
-			// occurred.
-			Config.notifyListeners();
-		}
+		return backing.get(key);
 	}
 
 	/**
@@ -1278,7 +1415,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param value the property value
 	 *
 	 */
-	public void addOrModifyProperty(final String name, final String value) {
+	protected void addOrModifyProperty(final String name, final String value) {
 		if (name == null) {
 			throw new IllegalArgumentException("name parameter can not be null.");
 		}
@@ -1291,8 +1428,7 @@ public class DefaultConfiguration implements Configuration {
 			throw new IllegalArgumentException("value parameter can not be null.");
 		}
 
-		recordMessage(
-				"modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
+		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
 
 		runtimeProperties.setProperty(name, value);
 
@@ -1313,7 +1449,7 @@ public class DefaultConfiguration implements Configuration {
 	 * Check if the environment property has been set.
 	 */
 	protected void checkEnvironmentProperty() {
-		String env = (String) backing.get(ENVIRONMENT_PROPERTY);
+		String env = backing.get(ENVIRONMENT_PROPERTY);
 		currentEnvironment = (env == null || env.isEmpty()) ? null : env;
 	}
 
