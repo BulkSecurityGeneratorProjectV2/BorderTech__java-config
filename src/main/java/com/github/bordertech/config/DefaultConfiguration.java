@@ -14,9 +14,11 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,7 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
-import java.util.Stack;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 import org.apache.commons.configuration.Configuration;
@@ -141,7 +142,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * The resource being loaded. This is used for the relative form of resource loading.
 	 */
-	private final Stack<String> resources = new Stack<>();
+	private final Deque<String> resources = new ArrayDeque<>();
 
 	/**
 	 * A generic object that allows us to synchronized refreshes. Required so that gets and refreshes are threadsafe
