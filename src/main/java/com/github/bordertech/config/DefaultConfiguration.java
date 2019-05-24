@@ -1505,7 +1505,7 @@ public class DefaultConfiguration implements Configuration {
 		 * @return the old value for the key, or null if there was no previously associated value.
 		 */
 		@Override
-		public Object put(final Object aKey, final Object aValue) {
+		public synchronized Object put(final Object aKey, final Object aValue) {
 			String key = (String) aKey;
 			String value = (String) aValue;
 
@@ -1541,14 +1541,14 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		@Override
-		public int hashCode() {
+		public synchronized int hashCode() {
 			int hash = 5;
 			hash = 97 * hash + Objects.hashCode(this.location);
 			return hash;
 		}
 
 		@Override
-		public boolean equals(final Object obj) {
+		public synchronized boolean equals(final Object obj) {
 			return obj instanceof IncludeProperties && Objects.equals(this.location, ((IncludeProperties) obj).location);
 		}
 
