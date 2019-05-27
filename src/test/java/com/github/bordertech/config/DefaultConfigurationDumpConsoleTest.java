@@ -10,7 +10,7 @@ import org.junit.Test;
 /**
  * DefaultConfigurationDumpTest - JUnit tests for {@link DefaultConfiguration}.
  */
-public class DefaultConfigurationDumpTest {
+public class DefaultConfigurationDumpConsoleTest {
 
 	private PrintStream original;
 	private ByteArrayOutputStream systemErr;
@@ -32,27 +32,27 @@ public class DefaultConfigurationDumpTest {
 	}
 
 	@Test
-	public void dumpParametersEnabled() {
+	public void dumpParametersConsoleEnabled() {
 		DefaultConfiguration config = new DefaultConfiguration(
-				"com/github/bordertech/config/DefaultConfigurationTestDumpEnabled.properties");
+				"com/github/bordertech/config/DefaultConfigurationTestDumpConsoleEnabled.properties");
 		// Check dump enabled
 		Assert.assertTrue(config.getBoolean(DefaultConfiguration.DUMP));
 		String log = systemErr.toString();
-		Assert.assertTrue("Output should contain dump start load", log.contains(LOG_START));
-		Assert.assertTrue("Output should contain dump start end", log.contains(LOG_END));
-		Assert.assertTrue("Output should contain property", log.contains(LOG_PARAM));
+		Assert.assertTrue("Console output should contain dump start load", log.contains(LOG_START));
+		Assert.assertTrue("Console output should contain dump start end", log.contains(LOG_END));
+		Assert.assertTrue("Console output should contain property", log.contains(LOG_PARAM));
 	}
 
 	@Test
-	public void dumpParametersDisabled() {
+	public void dumpParametersConsoleDisabled() {
 		DefaultConfiguration config = new DefaultConfiguration(
-				"com/github/bordertech/config/DefaultConfigurationTestDumpDisabled.properties");
+				"com/github/bordertech/config/DefaultConfigurationTestDumpConsoleDisabled.properties");
 		// Check dump disabled
 		Assert.assertFalse(config.getBoolean(DefaultConfiguration.DUMP));
 		String log = systemErr.toString();
-		Assert.assertFalse("Output should not contain dump start load", log.contains(LOG_START));
-		Assert.assertFalse("Output should not contain dump start end", log.contains(LOG_END));
-		Assert.assertFalse("Output should not contain property", log.contains(LOG_PARAM));
+		Assert.assertFalse("Console output should not contain dump start load", log.contains(LOG_START));
+		Assert.assertFalse("Console output should not contain dump start end", log.contains(LOG_END));
+		Assert.assertFalse("Console output should not contain property", log.contains(LOG_PARAM));
 	}
 
 }
