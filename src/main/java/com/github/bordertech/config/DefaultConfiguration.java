@@ -5,9 +5,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
@@ -33,6 +35,7 @@ import java.util.TreeSet;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
@@ -89,6 +92,11 @@ public class DefaultConfiguration implements Configuration {
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
 	 */
 	public static final String DUMP = "bordertech.config.parameters.dump.console";
+
+	/**
+	 * If this parameter is set, then after loading the parameters, they will be dumped to the specified file.
+	 */
+	public static final String DUMP_FILE = "bordertech.config.parameters.dump.file";
 
 	/**
 	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
@@ -292,10 +300,11 @@ public class DefaultConfiguration implements Configuration {
 			// Do nothing while loop
 		} while (substitute());
 
+		// Dump Header Info
 		LOG.info(getDumpHeader());
-		if (isDumpProperties()) {
-			LOG.info(getDumpMessages());
-			LOG.info(getDumpPropertyDetails());
+		// Dump properties
+		if (isDumpPropertiesConsole() || isDumpPropertiesFile()) {
+			handleDumpPropertyDetails();
 		}
 
 		// We don't want the StringBuilder hanging around after 'DUMP'.
@@ -322,8 +331,48 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * @return true if dump properties to the console
 	 */
-	private boolean isDumpProperties() {
+	private boolean isDumpPropertiesConsole() {
 		return getBoolean(DUMP) || getBoolean(LEGACY_DUMP);
+	}
+
+	/**
+	 * @return true if dump properties to a file
+	 */
+	private boolean isDumpPropertiesFile() {
+		return !StringUtils.isEmpty(getDumpFileLocation());
+	}
+
+	/**
+	 * @return the dump properties to file
+	 */
+	private String getDumpFileLocation() {
+		return get(DUMP_FILE, "");
+	}
+
+	/**
+	 * Dump the property details.
+	 */
+	private void handleDumpPropertyDetails() {
+
+		String loadMessages = getDumpLoadMessages();
+		String propMessages = getDumpPropertyDetails();
+
+		// Dump to console
+		if (isDumpPropertiesConsole()) {
+			LOG.info(loadMessages);
+			LOG.info(propMessages);
+		}
+
+		// Dump to File
+		if (isDumpPropertiesFile()) {
+			String dest = getDumpFileLocation();
+			try (FileOutputStream fos = new FileOutputStream(dest); PrintStream stream = new PrintStream(fos)) {
+				stream.println(loadMessages);
+				stream.println(propMessages);
+			} catch (IOException e) {
+				recordException(e);
+			}
+		}
 	}
 
 	/**
@@ -358,12 +407,17 @@ public class DefaultConfiguration implements Configuration {
 		info.append(codesourceStr);
 		info.append("\nWorking directory is: ");
 		info.append(workingDir);
-		info.append("\nTo dump all params set ");
+		info.append("\nTo dump all params to the console set ");
 		info.append(DUMP);
 		info.append(" to true; current value is ");
-		info.append(isDumpProperties());
-		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog that writes to System.err by default.");
-		info.append("\n----Config: Info end------\n");
+		info.append(isDumpPropertiesConsole());
+		info.append("\nTo dump all params to a file set ");
+		info.append(DUMP_FILE);
+		info.append(" to file location; current value is ");
+		info.append(getDumpFileLocation());
+		info.append("\nLOGGING can be controlled by configuring org.apache.commons.logging.impl.SimpleLog.");
+		info.append("\nSimpleLog writes to System.err by default.");
+		info.append("\n----Config: Info end------");
 
 		return info.toString();
 	}
@@ -397,7 +451,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * @return debugging load messages
 	 */
-	private String getDumpMessages() {
+	private String getDumpLoadMessages() {
 
 		StringBuilder info = new StringBuilder();
 
