@@ -38,7 +38,7 @@ Add dependency:
   <dependency>
     <groupId>com.github.bordertech.config</groupId>
     <artifactId>config</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
   </dependency>
   ....
 </project>
