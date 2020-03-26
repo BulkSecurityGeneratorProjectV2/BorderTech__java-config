@@ -734,9 +734,9 @@ public class DefaultConfiguration implements Configuration {
 	private void loadSystemProperties() {
 		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, false);
 		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
-		System.getProperties().entrySet().forEach((entry) -> {
-			mergeExternalProperty("System Properties", (String) entry.getKey(), (String) entry.getValue(), overWriteOnly, allowedPrefixes);
-		});
+		System.getProperties().entrySet().forEach(entry
+				-> mergeExternalProperty("System Properties", (String) entry.getKey(), (String) entry.getValue(), overWriteOnly, allowedPrefixes)
+		);
 	}
 
 	/**
@@ -744,9 +744,9 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private void loadEnvironmentProperties() {
 		List<String> allowedPrefixes = getList(USE_OSENV_PREFIXES);
-		System.getenv().entrySet().forEach((entry) -> {
-			mergeExternalProperty("Environment Properties", entry.getKey(), entry.getValue(), false, allowedPrefixes);
-		});
+		System.getenv().entrySet().forEach(entry
+				-> mergeExternalProperty("Environment Properties", entry.getKey(), entry.getValue(), false, allowedPrefixes)
+		);
 	}
 
 	/**

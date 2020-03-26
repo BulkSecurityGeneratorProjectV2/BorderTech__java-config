@@ -13,10 +13,9 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * Helper class for {@link Config} initialisation.
  * <p>
- * The helper checks for configuration overrides by searching for a property file named
- * <code>bordertech-config.properties</code> in the user home directory, the current classpath and the system classpath.
- * The file name can be overridden by setting an environment or system property with the key
- * <code>bordertech.config.file</code>.
+ * The helper checks for configuration overrides by searching for a property file named <code>BT_CONFIG_FILE</code> in
+ * the user home directory, the current classpath and the system classpath. The file name can be overridden by setting
+ * an environment or system property with the key <code>bordertech.config.file</code>.
  * </p>
  * <p>
  * The following properties can be set:-
