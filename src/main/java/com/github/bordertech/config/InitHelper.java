@@ -49,7 +49,7 @@ import org.apache.commons.lang3.StringUtils;
  */
 public final class InitHelper {
 
-	private static final String DEFAULTS_FILE_PARAM_KEY = "bordertech.config.file";
+	private static final String DEFAULTS_FILE_PARAM_KEY = "BT_CONFIG_FILE";
 	private static final String DEFAULTS_FILE_NAME = "bordertech-config.properties";
 	private static final String PARAM_KEY_DEFAULT_CONFIG_IMPL = "bordertech.config.default.impl";
 	private static final String PARAM_KEY_SPI_ENABLED = "bordertech.config.spi.enabled";
