@@ -6,9 +6,16 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Helper class for {@link Config} initialisation.
+ * <p>
+ * The helper checks for configuration overrides by searching for a property file named
+ * <code>bordertech-config.properties</code> in the user home directory, the current classpath and the system classpath.
+ * The file name can be overridden by setting an environment or system property with the key
+ * <code>bordertech.config.file</code>.
+ * </p>
  * <p>
  * The following properties can be set:-
  * <ul>
@@ -34,6 +41,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
  */
 public final class InitHelper {
 
+	private static final String DEFAULTS_FILE_PARAM_KEY = "bordertech.config.file";
 	private static final String DEFAULTS_FILE_NAME = "bordertech-config.properties";
 	private static final String PARAM_KEY_DEFAULT_CONFIG_IMPL = "bordertech.config.default.impl";
 	private static final String PARAM_KEY_SPI_ENABLED = "bordertech.config.spi.enabled";
@@ -63,7 +71,8 @@ public final class InitHelper {
 
 	static {
 		// Load the config defaults (if exists)
-		Configuration configDefaults = loadPropertyFile(DEFAULTS_FILE_NAME);
+		String configFile = getDefaultConfigFileName();
+		Configuration configDefaults = loadPropertyFile(configFile);
 		DEFAULT_CONFIG_IMPL = configDefaults.getString(PARAM_KEY_DEFAULT_CONFIG_IMPL, DefaultConfiguration.class.getName());
 		SPI_APPEND_DEFAULT_CONFIG = configDefaults.getBoolean(PARAM_KEY_SPI_APPEND_DEFAULT, true);
 		SPI_ENABLED = configDefaults.getBoolean(PARAM_KEY_SPI_ENABLED, true);
@@ -115,6 +124,23 @@ public final class InitHelper {
 			configDefaults = new PropertiesConfiguration();
 		}
 		return configDefaults;
+	}
+
+	/**
+	 * Check if the default config file name has been overridden via environment or system properties.
+	 *
+	 * @return the default config file name
+	 */
+	private static String getDefaultConfigFileName() {
+		// Check environment variable
+		String name = System.getenv(DEFAULTS_FILE_PARAM_KEY);
+		if (!StringUtils.isBlank(name)) {
+			return name;
+		}
+		// Check system property
+		name = System.getProperty(DEFAULTS_FILE_PARAM_KEY);
+		// If no system property, return the default file name
+		return StringUtils.isBlank(name) ? DEFAULTS_FILE_NAME : name;
 	}
 
 }
