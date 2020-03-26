@@ -11,7 +11,7 @@
 * Latest qa-parent
 * Ability to override the default config file name via a system or environment property `BT_CONFIG_FILE=my-config.properties`
 * Option to append extra resources to the defined resources via config property `bordertech.config.resources.append`
-* Option to load environment variables #13
+* Option to load environment variables #31
   * Enable via runtime property `bordertech.config.parameters.useEnvProperties=true`
   * Option to limit variables merged via property `bordertech.config.parameters.useEnvPrefixes`. Defaults to allow all.
 
