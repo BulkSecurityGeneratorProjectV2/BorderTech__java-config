@@ -45,11 +45,11 @@ public class DefaultConfigurationSystemTest {
 	@Test
 	public void loadSystemOverWriteOnly() {
 		DefaultConfiguration config = new DefaultConfiguration(
-				"com/github/bordertech/config/DefaultConfigurationTestLoadSystem.properties");
+				"com/github/bordertech/config/DefaultConfigurationTestLoadSystemOverWriteOnly.properties");
 		// Check system settings in the test properties files
 		Assert.assertTrue(config.getBoolean(DefaultConfiguration.USE_SYSTEM_PROPERTIES));
 		// OverWriteOnly Enabled - ie using the default so no property set
-		Assert.assertFalse(config.containsKey(DefaultConfiguration.USE_SYSTEM_OVERWRITEONLY));
+		Assert.assertTrue(config.containsKey(DefaultConfiguration.USE_SYSTEM_OVERWRITEONLY));
 		// No prefixes set
 		Assert.assertFalse(config.containsKey(DefaultConfiguration.USE_SYSTEM_PREFIXES));
 		// Check properties
@@ -58,12 +58,12 @@ public class DefaultConfigurationSystemTest {
 	}
 
 	@Test
-	public void loadSystemOverWriteOnlyDisabled() {
+	public void loadSystemProperties() {
 		DefaultConfiguration config = new DefaultConfiguration(
-				"com/github/bordertech/config/DefaultConfigurationTestLoadSystemOverWrite.properties");
+				"com/github/bordertech/config/DefaultConfigurationTestLoadSystem.properties");
 		// Check system settings in the test properties files
 		Assert.assertTrue(config.getBoolean(DefaultConfiguration.USE_SYSTEM_PROPERTIES));
-		// OverWriteOnly disabled
+		// OverWriteOnly disabled (default)
 		Assert.assertFalse(config.getBoolean(DefaultConfiguration.USE_SYSTEM_OVERWRITEONLY));
 		// No prefixes set
 		Assert.assertFalse(config.containsKey(DefaultConfiguration.USE_SYSTEM_PREFIXES));
