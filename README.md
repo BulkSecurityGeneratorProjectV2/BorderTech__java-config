@@ -5,7 +5,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=alert_status)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=bordertech-java-config&metric=coverage)](https://sonarcloud.io/dashboard?id=bordertech-java-config)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/738a3851c483470da86ffe1d047f344c)](https://www.codacy.com/app/BorderTech/java-config?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=BorderTech/java-config&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/ff9d14e9be2c4071b5e94bed4c7545cb)](https://www.codacy.com/gh/BorderTech/java-config?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=BorderTech/java-config&amp;utm_campaign=Badge_Grade)
 [![Javadocs](https://www.javadoc.io/badge/com.github.bordertech.config/config.svg)](https://www.javadoc.io/doc/com.github.bordertech.config/config)
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.bordertech.config/config.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.bordertech.config%22%20AND%20a:%22config%22)
 
@@ -87,7 +87,7 @@ include=another.properties
 
 It is possible to define properties to only take effect in a certain environment.
 
-When the environment property is set, it is used as the suffix for each property lookup:
+When the runtime property `bordertech.config.environment` is set, it is used as the suffix for each property lookup:
 
 ``` java properties
 ## MOCK Environment
@@ -121,8 +121,21 @@ Sometimes you may need to include System Properties in the Configuration:
 |Property key|Description|Default value|
 |-------------|-----------|-------------|
 |bordertech.config.parameters.useSystemProperties|This flag allows system properties to be merged into the Configuration at the end of the loading process.|false|
-|bordertech.config.parameters.useSystemOverWriteOnly|This flag controls if a system property will only overwrite an existing property|true|
-|bordertech.config.parameters.useSystemPrefixes|Define a list of system attribute prefixes that are allowed to be merged. Default is allow all.|n/a|
+|bordertech.config.parameters.useSystemOverWriteOnly|This flag controls if a system property will only overwrite an existing property|false|
+|bordertech.config.parameters.useSystemPrefixes|Define a list of system property prefixes that are allowed to be merged. Default is allow all.|n/a|
+
+System properties will override properties in resource files.
+
+### Merge Environment Properties into Configuration
+
+Sometimes you may need to include Environment Properties in the Configuration:
+
+|Property key|Description|Default value|
+|-------------|-----------|-------------|
+|bordertech.config.parameters.useEnvProperties|This flag allows environment properties to be merged into the Configuration at the end of the loading process.|false|
+|bordertech.config.parameters.useEnvPrefixes|Define a list of environment property prefixes that are allowed to be merged. Default is allow all.|n/a|
+
+Environemnt properties will override system properties and properties in resource files.
 
 ### Merge Configuration into System Properties
 
@@ -161,7 +174,7 @@ The following methods in the `Config` class are useful for unit testing:
 
 ## Configuration
 
-The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`.
+The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. The file name can be overriden via a System or Environment property `BT_CONFIG_FILE`.
 
 The following options can be set:-
 
@@ -171,6 +184,7 @@ The following options can be set:-
 |bordertech.config.spi.enabled|The flag to enable SPI lookup|true|
 |bordertech.config.spi.append.default|The flag to append the default configuration|true|
 |bordertech.config.resource.order|The list of property resources to load into the configuration. Priority of properties is in reverse order of the list.|bordertech-defaults.properties, bordertech-app.properties, bordertech-local.properties|
+|bordertech.config.resource.append|An optional list of extra property resources to append to the resources. Useful to add extra resources to the default resources.|n/a|
 
 ### Default Implementation
 
@@ -185,7 +199,7 @@ bordertech.config.default.impl=my.example.SpecialConfiguration
 Example of loading the default resources and a project specific resource:
 
 ``` java properties
-bordertech.config.resource.order+=my-project.properties
+bordertech.config.resource.append=my-project.properties
 ```
 
 ### SPI

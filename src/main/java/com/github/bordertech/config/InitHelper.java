@@ -1,14 +1,22 @@
 package com.github.bordertech.config;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Helper class for {@link Config} initialisation.
+ * <p>
+ * The helper checks for configuration overrides by searching for a property file named <code>BT_CONFIG_FILE</code> in
+ * the user home directory, the current classpath and the system classpath. The file name can be overridden by setting
+ * an environment or system property with the key <code>bordertech.config.file</code>.
+ * </p>
  * <p>
  * The following properties can be set:-
  * <ul>
@@ -16,6 +24,8 @@ import org.apache.commons.configuration.PropertiesConfiguration;
  * <li>bordertech.config.spi.enabled - enable SPI lookup (default: true)</li>
  * <li>bordertech.config.spi.append.default - append the default configuration (default: true)</li>
  * <li>bordertech.config.resource.order - order of resources to load into the configuration</li>
+ * <li>bordertech.config.resource.append - append additional resources. This is helpful when adding extra resources to
+ * the default resources</li>
  * </ul>
  * <p>
  * The default resources Config looks for are:-
@@ -26,6 +36,10 @@ import org.apache.commons.configuration.PropertiesConfiguration;
  * <li><code>bordertech-local.properties</code> - local developer properties</li>
  * </ul>
  *
+ * <p>
+ * Resources are ordered lowest to highest priority in determining which property value is used if property keys are
+ * duplicated.
+ * </p>
  *
  * @author Jonathan Austin
  * @since 1.0.0
@@ -34,11 +48,13 @@ import org.apache.commons.configuration.PropertiesConfiguration;
  */
 public final class InitHelper {
 
+	private static final String DEFAULTS_FILE_PARAM_KEY = "BT_CONFIG_FILE";
 	private static final String DEFAULTS_FILE_NAME = "bordertech-config.properties";
 	private static final String PARAM_KEY_DEFAULT_CONFIG_IMPL = "bordertech.config.default.impl";
 	private static final String PARAM_KEY_SPI_ENABLED = "bordertech.config.spi.enabled";
 	private static final String PARAM_KEY_SPI_APPEND_DEFAULT = "bordertech.config.spi.append.default";
 	private static final String PARAM_KEY_RESOURCE_ORDER = "bordertech.config.resource.order";
+	private static final String PARAM_KEY_RESOURCE_APPEND = "bordertech.config.resource.append";
 	private static final List<String> DEFAULT_BORDERTECH_LOAD_ORDER = Arrays.asList(
 			// The name of the first resource we look for is for internal default properties
 			"bordertech-defaults.properties",
@@ -63,16 +79,15 @@ public final class InitHelper {
 
 	static {
 		// Load the config defaults (if exists)
-		Configuration configDefaults = loadPropertyFile(DEFAULTS_FILE_NAME);
+		String configFile = getDefaultConfigFileName();
+		Configuration configDefaults = loadPropertyFile(configFile);
+		// Default config impl
 		DEFAULT_CONFIG_IMPL = configDefaults.getString(PARAM_KEY_DEFAULT_CONFIG_IMPL, DefaultConfiguration.class.getName());
+		// Check if SPI enabled
 		SPI_APPEND_DEFAULT_CONFIG = configDefaults.getBoolean(PARAM_KEY_SPI_APPEND_DEFAULT, true);
 		SPI_ENABLED = configDefaults.getBoolean(PARAM_KEY_SPI_ENABLED, true);
-		String[] override = configDefaults.getStringArray(PARAM_KEY_RESOURCE_ORDER);
-		if (override == null || override.length == 0) {
-			DEFAULT_RESOURCE_LOAD_ORDER = DEFAULT_BORDERTECH_LOAD_ORDER;
-		} else {
-			DEFAULT_RESOURCE_LOAD_ORDER = Arrays.asList(override);
-		}
+		// Load resource order
+		DEFAULT_RESOURCE_LOAD_ORDER = getResourceOrder(configDefaults);
 	}
 
 	/**
@@ -115,6 +130,46 @@ public final class InitHelper {
 			configDefaults = new PropertiesConfiguration();
 		}
 		return configDefaults;
+	}
+
+	/**
+	 * Check if the default config file name has been overridden via environment or system properties.
+	 *
+	 * @return the default config file name
+	 */
+	private static String getDefaultConfigFileName() {
+		// Check environment variable
+		String name = System.getenv(DEFAULTS_FILE_PARAM_KEY);
+		if (!StringUtils.isBlank(name)) {
+			return name;
+		}
+		// Check system property
+		name = System.getProperty(DEFAULTS_FILE_PARAM_KEY);
+		// If no system property, return the default file name
+		return StringUtils.isBlank(name) ? DEFAULTS_FILE_NAME : name;
+	}
+
+	/**
+	 * Retrieve the resource order.
+	 *
+	 * @param configDefaults the config defaults
+	 * @return the list of resources in load order
+	 */
+	private static List<String> getResourceOrder(final Configuration configDefaults) {
+		List<String> resources = new ArrayList<>();
+		// Check for default resource overrides
+		String[] override = configDefaults.getStringArray(PARAM_KEY_RESOURCE_ORDER);
+		if (override == null || override.length == 0) {
+			resources.addAll(DEFAULT_BORDERTECH_LOAD_ORDER);
+		} else {
+			resources.addAll(Arrays.asList(override));
+		}
+		// Check for append resources
+		String[] append = configDefaults.getStringArray(PARAM_KEY_RESOURCE_APPEND);
+		if (append != null && append.length > 0) {
+			resources.addAll(Arrays.asList(append));
+		}
+		return Collections.unmodifiableList(resources);
 	}
 
 }

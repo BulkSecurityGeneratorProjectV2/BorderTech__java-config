@@ -78,8 +78,11 @@ public class DefaultConfiguration implements Configuration {
 
 	/**
 	 * If merging System Properties this parameter controls if a system property will only overwrite an existing
-	 * property. The default is true.
+	 * property. The default is false.
+	 *
+	 * @deprecated Use {@link #USE_SYSTEM_PREFIXES} to control which properties can be merged
 	 */
+	@Deprecated
 	public static final String USE_SYSTEM_OVERWRITEONLY = "bordertech.config.parameters.useSystemOverWriteOnly";
 
 	/**
@@ -87,6 +90,18 @@ public class DefaultConfiguration implements Configuration {
 	 * to be merged. The default is allow all System Properties to be merged.
 	 */
 	public static final String USE_SYSTEM_PREFIXES = "bordertech.config.parameters.useSystemPrefixes";
+
+	/**
+	 * If this parameter is defined and resolves to true as a boolean, then the OS Environment properties will be merged
+	 * at the end of the loading process.
+	 */
+	public static final String USE_OSENV_PROPERTIES = "bordertech.config.parameters.useEnvProperties";
+
+	/**
+	 * If merging OS Environment Properties, this parameter can be used to define a list of attribute prefixes that are
+	 * allowed to be merged. The default is allow all Environment Properties to be merged.
+	 */
+	public static final String USE_OSENV_PREFIXES = "bordertech.config.parameters.useEnvPrefixes";
 
 	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
@@ -295,6 +310,11 @@ public class DefaultConfiguration implements Configuration {
 			loadSystemProperties();
 		}
 
+		if (isUseOsEnvProperties()) {
+			recordMessage("Loading from environment properties");
+			loadEnvironmentProperties();
+		}
+
 		// Now perform variable substitution.
 		do {
 			// Do nothing while loop
@@ -326,6 +346,13 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private boolean isUseSystemProperties() {
 		return getBoolean(USE_SYSTEM_PROPERTIES) || getBoolean(LEGACY_USE_SYSTEM_PROPERTIES);
+	}
+
+	/**
+	 * @return true if load OS Environment properties into config
+	 */
+	private boolean isUseOsEnvProperties() {
+		return getBoolean(USE_OSENV_PROPERTIES);
 	}
 
 	/**
@@ -705,33 +732,51 @@ public class DefaultConfiguration implements Configuration {
 	 * Load the System Properties into Config.
 	 */
 	private void loadSystemProperties() {
-
-		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, true);
+		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, false);
 		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
+		System.getProperties().entrySet().forEach(entry
+				-> mergeExternalProperty("System Properties", (String) entry.getKey(), (String) entry.getValue(), overWriteOnly, allowedPrefixes)
+		);
+	}
 
-		for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
+	/**
+	 * Load the OS Environment Properties into Config.
+	 */
+	private void loadEnvironmentProperties() {
+		List<String> allowedPrefixes = getList(USE_OSENV_PREFIXES);
+		System.getenv().entrySet().forEach(entry
+				-> mergeExternalProperty("Environment Properties", entry.getKey(), entry.getValue(), false, allowedPrefixes)
+		);
+	}
 
-			String key = (String) entry.getKey();
-			String value = (String) entry.getValue();
+	/**
+	 * Merge the external property.
+	 *
+	 * @param location the location of the properties
+	 * @param key the property key
+	 * @param value the property value
+	 * @param overWriteOnly true if only overwrite existing properties
+	 * @param allowedPrefixes the list of allowed property prefixes
+	 */
+	private void mergeExternalProperty(final String location, final String key, final String value, final boolean overWriteOnly, final List<String> allowedPrefixes) {
 
-			// Check for "include" keys (should not come from System Properties)
-			if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
-				continue;
-			}
-
-			// Check allowed prefixes
-			if (!isAllowedKeyPrefix(allowedPrefixes, key)) {
-				continue;
-			}
-
-			// Check overwrite only
-			if (overWriteOnly && get(key) == null) {
-				continue;
-			}
-
-			// Load property
-			load(key, value, "System Properties");
+		// Check for "include" keys (should not come from System or Environment Properties)
+		if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
+			return;
 		}
+
+		// Check allowed prefixes
+		if (!isAllowedKeyPrefix(allowedPrefixes, key)) {
+			return;
+		}
+
+		// Check overwrite only
+		if (overWriteOnly && get(key) == null) {
+			return;
+		}
+
+		// Load property
+		load(key, value, location);
 	}
 
 	/**

@@ -33,4 +33,25 @@ public class ConfigTest {
 		String actual = config.getString("kung.fu");
 		Assert.assertEquals("Copy should maintain properties", expected, actual);
 	}
+
+	@Test
+	public void testResourceOrder() {
+		Configuration config = Config.getInstance();
+		Assert.assertEquals("Correct property value in defaults", "IN-DEFAULTS", config.getString("test.in.defaults"));
+		Assert.assertEquals("Correct property value in app", "IN-APP", config.getString("test.in.app"));
+		Assert.assertEquals("Correct property value in local", "IN-LOCAL", config.getString("test.in.local"));
+		Assert.assertEquals("Correct property value in extra first", "IN-EXTRA-FIRST", config.getString("test.in.extra.first"));
+		Assert.assertEquals("Correct property value in extra second", "IN-EXTRA-SECOND", config.getString("test.in.extra.second"));
+	}
+
+	@Test
+	public void testResourceOrderOverrides() {
+		Configuration config = Config.getInstance();
+		Assert.assertEquals("Correct property override value in defaults", "DEFAULTS-def", config.getString("test.override.defaults"));
+		Assert.assertEquals("Correct property override value in app", "APP-app", config.getString("test.override.app"));
+		Assert.assertEquals("Correct property override value in local", "LOCAL-local", config.getString("test.override.local"));
+		Assert.assertEquals("Correct property override value in extra first", "EXTRA-FIRST-extra-1", config.getString("test.override.extra.first"));
+		Assert.assertEquals("Correct property override value in extra second", "EXTRA-SECOND-extra-2", config.getString("test.override.extra.second"));
+	}
+
 }
