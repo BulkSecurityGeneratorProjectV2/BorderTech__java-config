@@ -2,6 +2,8 @@
 
 ## Release in-progress
 
+## 1.0.6
+
 ### API Changes
 * The runtime property `bordertech.config.parameters.useSystemOverWriteOnly` now defaults to false which allows all system properties to be
   merged when system properties enabled. Use the optional runtime property `bordertech.config.parameters.useSystemPrefixes` to limit the

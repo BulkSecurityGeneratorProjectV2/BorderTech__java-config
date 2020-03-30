@@ -5,7 +5,7 @@
 	<groupId>com.github.bordertech.config</groupId>
 	<name>config</name>
 	<artifactId>config</artifactId>
-	<version>1.0.6-SNAPSHOT</version>
+	<version>1.0.7-SNAPSHOT</version>
 
 	<parent>
 		<groupId>com.github.bordertech.common</groupId>
