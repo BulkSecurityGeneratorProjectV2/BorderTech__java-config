@@ -1,5 +1,10 @@
 package com.github.bordertech.config;
 
+import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.lang.StringUtils;
+
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,10 +13,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
-import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.MapConfiguration;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * The Config class is the central access point to the configuration mechanism, and is used to read or modify the
@@ -185,7 +186,7 @@ public final class Config {
 	 * Load the configuration.
 	 */
 	private static void loadConfiguration() {
-		Configuration config = checkSLIConfiguration();
+		Configuration config = checkSPIConfiguration();
 		if (config == null) {
 			config = getDefaultConfiguration();
 		}
@@ -221,10 +222,9 @@ public final class Config {
 	}
 
 	/**
-	 *
 	 * @return a SLI Configuration or null if none available
 	 */
-	private static Configuration checkSLIConfiguration() {
+	private static Configuration checkSPIConfiguration() {
 
 		if (!InitHelper.SPI_ENABLED) {
 			return null;
