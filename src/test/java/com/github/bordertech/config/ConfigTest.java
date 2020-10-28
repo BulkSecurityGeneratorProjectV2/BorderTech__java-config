@@ -101,14 +101,14 @@ public class ConfigTest {
 		final String value = "override";
 
 		DefaultConfiguration config = new DefaultConfiguration();
-		config.setProperty("bordertech.config.touchfile", "./parameters.touch");
+		config.setProperty("bordertech.config.touchfile", "./target/parameters.touch");
 		config.setProperty("bordertech.config.touchfile.interval", "2000");
 		config.setProperty(key, "override");
 		Config.setConfiguration(config);
 
 		Assert.assertEquals(value, Config.getInstance().getString(key));
 
-		FileUtils.touch(new File("./parameters.touch"));
+		FileUtils.touch(new File("./target/parameters.touch"));
 
 		Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> Config.getInstance().getString(key).equals("IN-DEFAULTS"));
 	}

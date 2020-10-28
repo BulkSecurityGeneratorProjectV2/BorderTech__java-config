@@ -470,15 +470,12 @@ public class DefaultConfiguration implements Configuration {
 
 		load(resourceName);
 
-		// Now check for INCLUDE_AFTER resources
-		String includes = get(INCLUDE_AFTER);
-
-		if (includes != null) {
+		if (backing.containsKey(INCLUDE_AFTER)) {
 			// First, do substitution on the INCLUDE_AFTER
-			substitute(includes);
+			substitute(INCLUDE_AFTER);
 
 			// Now split and process
-			String[] includeAfter = parseStringArray(getString(INCLUDE_AFTER));
+			String[] includeAfter = parseStringArray(get(INCLUDE_AFTER));
 
 			backing.remove(INCLUDE_AFTER);
 			for (String after : includeAfter) {
@@ -1437,7 +1434,7 @@ public class DefaultConfiguration implements Configuration {
 					append = true;
 				}
 
-				if (append) {
+				if (append || INCLUDE_AFTER.equals(key)) {
 					String already = DefaultConfiguration.this.get(key);
 
 					// If there is no value already, strip off the leading comma, otherwise append.

@@ -109,6 +109,9 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("test.definedAfterInclude", "mainValue");
 		assertPropertyEquals("test.definedBeforeIncludeAfter", "includeAfterValue");
 		assertPropertyEquals("test.definedAfterIncludeAfter", "includeAfterValue");
+
+		Assert.assertTrue(config.getBoolean("test.definedAfterIncludeAfterWithSubstitution"));
+		Assert.assertTrue(config.getBoolean("test.includeAfter.secondary"));
 	}
 
 	@Test
@@ -493,8 +496,7 @@ public class DefaultConfigurationTest {
 	@Test
 	public void testConstructorMissingResourceLoader() {
 		assertMissingResourceLoader(new DefaultConfiguration(null));
-		assertMissingResourceLoader(new DefaultConfiguration(""));
-		assertMissingResourceLoader(new DefaultConfiguration(" "));
+		assertMissingResourceLoader(new DefaultConfiguration(new String[0]));
 	}
 
 	private void assertMissingResourceLoader(DefaultConfiguration config) {
@@ -572,7 +574,7 @@ public class DefaultConfigurationTest {
 
 		Properties props = new Properties();
 		props.setProperty("physical.file.include", "physicalFileIncludeValue");
-		props.store(new FileWriter(new File("./DefaultConfigTestInclude.properties")), null);
+		props.store(new FileWriter(new File("./target/DefaultConfigTestInclude.properties")), null);
 
 		DefaultConfiguration config = new DefaultConfiguration(
 			"com/github/bordertech/config/DefaultConfigurationTest_include.properties");
