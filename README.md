@@ -134,7 +134,7 @@ We can activate these profiles in different environments to set(override) the pr
 If the property is defined as an environment and a system property, the system property takes precedence.
 This property cannot be overridden at runtime and cannot be used in variable substitution of property values.
 
-**Setting a Profile will override an Environment Suffix if it is set.** 
+Setting a Profile will override an Environment Suffix if it is set. 
 
 When an environment or system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
