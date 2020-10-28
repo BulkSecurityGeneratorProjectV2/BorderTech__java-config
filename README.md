@@ -77,7 +77,7 @@ The resources loaded into the Configuration can be overridden via [configuration
 
 ### Include resources
 Other property files can be included from other predefined property files.
-If the "include" property is defined, it is treated as a (comma-separated) list of additional resources to load that are processed immediately within the current set.
+If the "include" property is defined, it is treated as a (comma-separated) list of additional resources to load that are processed immediately within the current resource being loaded
 
 Variable substitution is not allowed for the resource name(s)
 
@@ -98,20 +98,24 @@ includeAfter=include_resource_1.properties[,include_resource_2.properties]
 ### += Append values to predefined properties
 
 Config also allows for the ability to append values to properties already defined. 
-This is done using '+=' instead of '=' on a key-value pair.
+This is done using '+=' instead of '=' on a key-value pair. Suggested use case is you have a global default set and then
+you want to append application specific values to the default values for access within an application.
  
  ``` java properties
+# Defined in default.properties
 already.defined.key+=value1
+
+#Defined in app.properties
 already.defined.key+=value2,value3
 ``` 
-is the same as
-```java properties
-already.defined.key=value1,value2,value3
-```
+
+`Config.getInstance().get("already.defined.key")` returns `value1,value2,value3`
 
 ### Environment Suffix
 
-Deprecated. See [Profiles](#Profiles) for the replacement solution
+Deprecated. The flexibility of when the Environment Suffix can be set makes it difficult to keep a consistent
+set of properties at runtime. Due to this flexibility it is suggested that you use [Profiles](#Profiles) as 
+the replacement solution. It has been marked as deprecated and with be removed in the next major release. 
 
 It is possible to define properties to only take effect in a certain environment.
 
@@ -131,10 +135,13 @@ If no property exists with the current environment suffix then the default prope
 ### Profiles
 Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
 We can activate these profiles in different environments to set(override) the properties we need. 
-If the property is defined as an environment and a system property, the system property takes precedence.
-This property cannot be overridden at runtime and cannot be used in variable substitution of property values.
+The profile property can be defined as either an environment variable or a system property. If both are defined,
+the system property will take precedence before the environment variable.
 
-Setting a Profile will override an Environment Suffix if it is set. 
+This profile property is a special property and cannot be overridden within your configuration definition. If a profile 
+is set, it is only appended as a suffix to a key to determine if there is a defined property override for the key.
+
+The profile property cannot be used in variable substitution for your properties in the configuration.
 
 When an environment or system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
@@ -223,7 +230,8 @@ The following methods in the `Config` class are useful for unit testing:
 
 ## Configuration
 
-The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. The file name can also be overriden via a System or Environment property `BT_CONFIG_FILE`.
+The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. 
+The default `bordertech-config.properties` file name can also be overriden via a System or Environment property `BT_CONFIG_FILE`.
 
 The following options can be set:-
 
@@ -255,7 +263,44 @@ bordertech.config.resource.append=my-project.properties
 
 [ConfigurationLoader](https://github.com/BorderTech/java-config/blob/master/src/main/java/com/github/bordertech/config/ConfigurationLoader.java) is the [SPI](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) interface for classes that can load a custom configuration.
 
-By default, the SPI lookup is enabled and if found, will be appended to the default implementation.
+By default, the SPI lookup is enabled and if found, it will create the custom configuration
+ 
+If the `bordertech.config.spi.append.default` is true the Default Configuration will also be appended to the configuration.
+
+### Best Practice
+
+Anything that can be used across multiple applications should be defined at the server level
+
+Properties that are system specific are best set in the environment
+e.g. hostnames, url, proxy hosts/ports non proxy hosts. 
+
+Properties that are application specific are best set in the application
+And can access the environment and override/append as required.
+
+* Prod
+    * path/to/location/on/server/environment-defaults.properties (Prod values)
+    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = PROD
+    * App1
+        * bordertech-app.properties
+    * App2
+        * bordertech-app.properties
+* Test
+    * path/to/location/on/server/environment-defaults.properties (Test values)
+    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = TEST
+    * App1
+        * bordertech-app.properties
+    * App2
+        * bordertech-app.properties
+* Dev
+    * path/to/location/on/server/environment-defaults.properties (Dev values)
+    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = DEV 
+    * App1
+        * bordertech-app.properties
+    * App2
+        * bordertech-app.properties
+* Common Configuration Library 
+    * bordertech-defaults.properties (includes path/to/location/on/server/environment-defaults.properties)
+    * Configuration implementation(if not using Default Configuration)
 
 ## Contributing
 
