@@ -76,14 +76,42 @@ The priority of the properties is in reverse order to the list of resources (i.e
 The resources loaded into the Configuration can be overridden via [configuration](#configuration) settings.
 
 ### Include resources
+Other property files can be included from other predefined property files.
+If the "include" property is defined, it is treated as a (comma-separated) list of additional resources to load that are processed immediately within the current set.
 
-Other property files can be included from the predefined property files:
+Variable substitution is not allowed for the resource name(s)
 
 ``` java properties
-include=another.properties
+include=include_resource_1.properties[,include_resource_2.properties]
+```
+
+### IncludeAfter resources
+Other property files can be included from the predefined property file after the current set has loaded.
+If this property is defined, it is taken as a (comma-separated) list of additional resources to load that are processed after the current (set of) resources have loaded.
+
+Variable substitution is allowed for the resource name(s)
+
+``` java properties
+includeAfter=include_resource_1.properties[,include_resource_2.properties]
+``` 
+
+### += Append values to predefined properties
+
+Config also allows for the ability to append values to properties already defined. 
+This is done using '+=' instead of '=' on a key-value pair.
+ 
+ ``` java properties
+already.defined.key+=value1
+already.defined.key+=value2,value3
+``` 
+is the same as
+```java properties
+already.defined.key=value1,value2,value3
 ```
 
 ### Environment Suffix
+
+Deprecated. See [Profiles](#Profiles) for the replacement solution
 
 It is possible to define properties to only take effect in a certain environment.
 
@@ -99,6 +127,27 @@ my.example.property=defaulting
 ```
 
 If no property exists with the current environment suffix then the default property (ie no suffix) value is used.
+
+### Profiles
+Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
+We can activate these profiles in different environments to set(override) the properties we need. 
+If the property is defined as an environment and a system property, the system property takes precedence.
+This property cannot be overridden at runtime and cannot be used in variable substitution of property values.
+
+**Setting a Profile will override an Environment Suffix if it is set.** 
+
+When an environment or system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
+
+``` java properties
+## MOCK Environment set as an Environment or System property only
+bordertech.config.profile=MOCK
+
+my.example.property.MOCK=mocking
+my.example.property.PROD=proding
+my.example.property=defaulting
+```
+
+If no profile property exists within the current environment then the Environment Suffix feature is used
 
 ### Touchfile
 
@@ -174,7 +223,7 @@ The following methods in the `Config` class are useful for unit testing:
 
 ## Configuration
 
-The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. The file name can be overriden via a System or Environment property `BT_CONFIG_FILE`.
+The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. The file name can also be overriden via a System or Environment property `BT_CONFIG_FILE`.
 
 The following options can be set:-
 
