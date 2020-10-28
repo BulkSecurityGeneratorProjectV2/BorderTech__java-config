@@ -102,6 +102,10 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	public static final String ENVIRONMENT_PROPERTY = "bordertech.config.environment";
 	/**
+	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
+	 */
+	public static final String PROFILE_PROPERTY = "bordertech.config.profile";
+	/**
 	 * Parameters with this prefix will be dumped into the System parameters. This feature is for handling recalcitrant
 	 * 3rd party software only - not for general use!!!
 	 */
@@ -162,8 +166,13 @@ public class DefaultConfiguration implements Configuration {
 
 	/**
 	 * Holds the current environment suffix (if set).
+	 *
+	 * @deprecated - Replaced by current Profile
 	 */
+	@Deprecated
 	private String currentEnvironment = null;
+
+	private String environmentProfile = null;
 
 	/**
 	 * Our backing store is a Map object.
@@ -199,7 +208,9 @@ public class DefaultConfiguration implements Configuration {
 	 * @param resourceLoadOrder the resource order
 	 */
 	public DefaultConfiguration(final String... resourceLoadOrder) {
-		if (resourceLoadOrder == null || resourceLoadOrder.length == 0 || Arrays.stream(resourceLoadOrder).anyMatch(StringUtils::isBlank)) {
+		if (resourceLoadOrder == null || resourceLoadOrder.length == 0 || Arrays
+			.stream(resourceLoadOrder)
+			.anyMatch(StringUtils::isBlank)) {
 			this.resourceLoadOrder = InitHelper.getDefaultResourceLoadOrder();
 		} else {
 			this.resourceLoadOrder = resourceLoadOrder;
@@ -215,8 +226,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @param out the destination stream.
 	 * @throws IOException if there is an error reading or writing to the streams.
 	 */
-	private static void copyStream(final InputStream in, final OutputStream out)
-		throws IOException {
+	private static void copyStream(final InputStream in, final OutputStream out) throws IOException {
 		final byte[] buf = new byte[2048];
 		int bytesRead = in.read(buf);
 
@@ -271,6 +281,8 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		recordMessage("Working directory is " + workingDir);
+
+		setEnvironmentProfile();
 
 		for (String resourceName : resourceLoadOrder) {
 			loadTop(resourceName);
@@ -512,7 +524,6 @@ public class DefaultConfiguration implements Configuration {
 			if (!found) {
 				recordMessage("Did not find resource " + resourceName);
 			}
-
 		} catch (IOException | IllegalArgumentException ex) {
 			// Most likely a "Malformed uxxxx encoding." error, which is
 			// usually caused by a developer forgetting to escape backslashes
@@ -535,7 +546,7 @@ public class DefaultConfiguration implements Configuration {
 		recordMessage("Using classloader " + classloader);
 
 		List<URL> urls = new ArrayList<>();
-		for (Enumeration<URL> res = classloader.getResources(resourceName); res.hasMoreElements();) {
+		for (Enumeration<URL> res = classloader.getResources(resourceName); res.hasMoreElements(); ) {
 			urls.add(res.nextElement());
 		}
 		recordMessage("Resource " + resourceName + " was found  " + urls.size() + " times");
@@ -585,7 +596,6 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		return contentsList;
-
 	}
 
 	/**
@@ -606,7 +616,6 @@ public class DefaultConfiguration implements Configuration {
 				new IncludeProperties(url.toString()).load(in);
 			}
 		}
-
 	}
 
 	/**
@@ -621,8 +630,7 @@ public class DefaultConfiguration implements Configuration {
 
 		recordMessage("Loading from file " + fileName + "...");
 
-		try (FileInputStream fin = new FileInputStream(file);
-			 BufferedInputStream bin = new BufferedInputStream(fin)) {
+		try (FileInputStream fin = new FileInputStream(file); BufferedInputStream bin = new BufferedInputStream(fin)) {
 			// Use the "IncludeProperties" to load properties into us, one at a time....
 			new IncludeProperties("file:" + fileName).load(bin);
 		}
@@ -711,6 +719,21 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
+	 * Set the Environment Profile if it has been set as a system or environment property
+	 *
+	 * If both are defined, system property overrides and environment property
+	 */
+	private void setEnvironmentProfile() {
+		environmentProfile = System.getProperty(PROFILE_PROPERTY, System.getenv().get(PROFILE_PROPERTY));
+
+		if (StringUtils.isBlank(environmentProfile)) {
+			recordMessage("Environment Profile Property <" + PROFILE_PROPERTY + "> has not been defined.");
+		} else {
+			recordMessage("Environment Profile Property <" + PROFILE_PROPERTY + "> has been defined as " + environmentProfile);
+		}
+	}
+
+	/**
 	 * Merge the external property.
 	 *
 	 * @param location        the location of the properties
@@ -719,7 +742,12 @@ public class DefaultConfiguration implements Configuration {
 	 * @param overWriteOnly   true if only overwrite existing properties
 	 * @param allowedPrefixes the list of allowed property prefixes
 	 */
-	private void mergeExternalProperty(final String location, final String key, final String value, final boolean overWriteOnly, final List<Object> allowedPrefixes) {
+	private void mergeExternalProperty(
+		final String location,
+		final String key,
+		final String value,
+		final boolean overWriteOnly,
+		final List<Object> allowedPrefixes) {
 
 		// Check for "include" keys (should not come from System or Environment Properties)
 		if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
@@ -938,10 +966,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public boolean containsKey(final String key) {
-		if (backing.containsKey(getEnvironmentKey(key))) {
-			return true;
-		}
-		return backing.containsKey(key);
+		return backing.containsKey(getKey(key));
 	}
 
 	@Override
@@ -986,10 +1011,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public boolean getBoolean(final String key) {
-		if (booleanBacking.contains(getEnvironmentKey(key))) {
-			return true;
-		}
-		return booleanBacking.contains(key);
+		return booleanBacking.contains(getKey(key));
 	}
 
 	@Override
@@ -999,10 +1021,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public Boolean getBoolean(final String key, final Boolean defaultValue) {
-		if (containsKey(key)) {
-			return getBoolean(key);
-		}
-		return defaultValue;
+		return containsKey(key) ? getBoolean(key) : defaultValue;
 	}
 
 	@Override
@@ -1306,12 +1325,7 @@ public class DefaultConfiguration implements Configuration {
 	 * @return the property value or null
 	 */
 	protected String get(final String key) {
-		// Check environment property
-		String result = backing.get(getEnvironmentKey(key));
-		if (result != null) {
-			return result;
-		}
-		return backing.get(key);
+		return backing.get(getKey(key));
 	}
 
 	/**
@@ -1352,7 +1366,10 @@ public class DefaultConfiguration implements Configuration {
 
 	/**
 	 * Check if the environment property has been set.
+	 *
+	 * @deprecated - Replaced by Environment Profile
 	 */
+	@Deprecated
 	protected void checkEnvironmentProperty() {
 		String env = backing.get(ENVIRONMENT_PROPERTY);
 		currentEnvironment = (env == null || env.isEmpty()) ? null : env;
@@ -1361,7 +1378,9 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * @param key the property key
 	 * @return true if check environment suffix
+	 * @deprecated - Replaced by Environment Profile
 	 */
+	@Deprecated
 	protected boolean useEnvironmentKey(final String key) {
 		// Has environment and is not the environment property
 		return currentEnvironment != null && !ENVIRONMENT_PROPERTY.equals(key);
@@ -1370,10 +1389,26 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * @param key the property key
 	 * @return the property key with the environment suffix
+	 * @deprecated - Replaced by Environment Profile
 	 */
+	@Deprecated
 	protected String getEnvironmentKey(final String key) {
 		if (useEnvironmentKey(key)) {
 			return key + "." + currentEnvironment;
+		} else {
+			return key;
+		}
+	}
+
+	private String getKey(String key) {
+
+		String profileKey = key + "." + environmentProfile;
+		String currentEnvKey = key + "." + currentEnvironment;
+
+		if (StringUtils.isNotBlank(environmentProfile) && backing.containsKey(profileKey)) {
+			return profileKey;
+		} else if (StringUtils.isNotBlank(currentEnvironment) && backing.containsKey(currentEnvKey)) {
+			return currentEnvKey;
 		} else {
 			return key;
 		}
