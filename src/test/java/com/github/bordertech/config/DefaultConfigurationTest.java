@@ -112,6 +112,9 @@ public class DefaultConfigurationTest {
 
 		Assert.assertTrue(config.getBoolean("test.definedAfterIncludeAfterWithSubstitution"));
 		Assert.assertTrue(config.getBoolean("test.includeAfter.secondary"));
+
+		//This is to test that the last includeAfter overrides this property
+		assertPropertyEquals("test.includeAfter.secondaryString", "secondary");
 	}
 
 	@Test
