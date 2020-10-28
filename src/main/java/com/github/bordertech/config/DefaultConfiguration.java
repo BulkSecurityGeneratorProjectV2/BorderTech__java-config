@@ -546,7 +546,7 @@ public class DefaultConfiguration implements Configuration {
 		recordMessage("Using classloader " + classloader);
 
 		List<URL> urls = new ArrayList<>();
-		for (Enumeration<URL> res = classloader.getResources(resourceName); res.hasMoreElements(); ) {
+		for (Enumeration<URL> res = classloader.getResources(resourceName); res.hasMoreElements();) {
 			urls.add(res.nextElement());
 		}
 		recordMessage("Resource " + resourceName + " was found  " + urls.size() + " times");
@@ -719,8 +719,7 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Set the Environment Profile if it has been set as a system or environment property
-	 *
+	 * Set the Environment Profile if it has been set as a system or environment property.
 	 * If both are defined, system property overrides and environment property
 	 */
 	private void setEnvironmentProfile() {
@@ -1400,10 +1399,10 @@ public class DefaultConfiguration implements Configuration {
 		}
 	}
 
-	private String getKey(String key) {
+	private String getKey(final String key) {
 
-		String profileKey = key + "." + environmentProfile;
-		String currentEnvKey = key + "." + currentEnvironment;
+		final String profileKey = key + "." + environmentProfile;
+		final String currentEnvKey = key + "." + currentEnvironment;
 
 		if (StringUtils.isNotBlank(environmentProfile) && backing.containsKey(profileKey)) {
 			return profileKey;
