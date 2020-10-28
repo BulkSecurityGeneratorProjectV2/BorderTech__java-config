@@ -118,9 +118,12 @@ public class ConfigTest {
 		DefaultConfiguration config = new DefaultConfiguration();
 		Config.setConfiguration(config);
 
-		AccessInitHelper.overrideDefaultConfig("a.package.ClassNotExists", false);
+		try {
+			AccessInitHelper.overrideDefaultConfig("a.package.ClassNotExists", false);
+		} finally {
+			Config.reset();
+		}
 
-		Config.reset();
 		Assert.fail("IllegalStateException expected");
 	}
 

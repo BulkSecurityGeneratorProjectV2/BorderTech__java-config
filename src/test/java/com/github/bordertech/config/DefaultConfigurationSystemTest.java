@@ -5,6 +5,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static com.github.bordertech.config.DefaultConfiguration.INCLUDE;
+import static com.github.bordertech.config.DefaultConfiguration.INCLUDE_AFTER;
+
 /**
  * DefaultConfiguration_Test - JUnit tests for {@link DefaultConfiguration}.
  */
@@ -31,6 +34,8 @@ public class DefaultConfigurationSystemTest {
 		System.getProperties().setProperty(PREFIX_1_KEY, PREFIX_1_OVERWRITE);
 		System.getProperties().setProperty(PREFIX_2_KEY, PREFIX_2_OVERWRITE);
 		System.getProperties().setProperty(PREFIX_3_KEY, PREFIX_3_OVERWRITE);
+		System.getProperties().setProperty(INCLUDE, "DoesntMatter");
+		System.getProperties().setProperty(INCLUDE_AFTER, "DoesntMatterEither");
 	}
 
 	@AfterClass
@@ -40,6 +45,8 @@ public class DefaultConfigurationSystemTest {
 		System.getProperties().remove(PREFIX_1_KEY);
 		System.getProperties().remove(PREFIX_2_KEY);
 		System.getProperties().remove(PREFIX_3_KEY);
+		System.getProperties().remove(INCLUDE);
+		System.getProperties().remove(INCLUDE_AFTER);
 	}
 
 	@Test
@@ -70,6 +77,9 @@ public class DefaultConfigurationSystemTest {
 		// Check properties
 		Assert.assertEquals("Existing property should have been overwritten", PROPERTY_EXISTS_OVERWRITE, config.get(PROPERTY_EXISTS_KEY));
 		Assert.assertEquals("Not existing property should have been overwritten", PROPERTY_NOTEXISTS_OVERWRITE, config.get(PROPERTY_NOTEXISTS_KEY));
+
+		Assert.assertFalse(config.containsKey(INCLUDE));
+		Assert.assertFalse(config.containsKey(INCLUDE_AFTER));
 	}
 
 	@Test

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static com.github.bordertech.config.DefaultConfiguration.ENVIRONMENT_PROPERTY;
+import static com.github.bordertech.config.DefaultConfiguration.PROFILE_PROPERTY;
 
 /**
  * DefaultConfiguration_Test - JUnit tests for {@link DefaultConfiguration}.
@@ -101,6 +102,7 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("substitute.part1And2And3Key", "part1Value+part2Value+part3Value");
 		assertPropertyEquals("substitute.combinedKey", "multiPart1ValuemultiPart2Value");
 		assertPropertyEquals("substitute.reurse", "${substitute.recurse}");
+		assertPropertyEquals("substitute.key.not.defined.in.value", "${this.key.is.not.defined}");
 	}
 
 	@Test
@@ -227,6 +229,19 @@ public class DefaultConfigurationTest {
 			Integer.valueOf(MISSING_PROPERTY_VAL), config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
 	}
 
+	@Test
+	public void testGetInteger() {
+		Assert.assertEquals("Incorrect int value for " + INT_PROPERTY_KEY, Integer.valueOf(INT_PROPERTY_VAL), config.getInteger(INT_PROPERTY_KEY, INT_PROPERTY_VAL));
+
+		Assert.assertEquals("Incorrect int value for missing key", Integer.valueOf("0"), config.getInteger(MISSING_PROPERTY_KEY, 0));
+
+		Assert.assertEquals("Incorrect default int value for missing key", Integer.valueOf(MISSING_PROPERTY_VAL),
+			config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+
+		Assert.assertEquals("Incorrect default integer value for missing key",
+			Integer.valueOf(MISSING_PROPERTY_VAL), config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+	}
+
 	@Test(expected = ConversionException.class)
 	public void testGetInvalidInt() {
 		config.getInt(STRING_PROPERTY_KEY);
@@ -235,6 +250,11 @@ public class DefaultConfigurationTest {
 	@Test(expected = ConversionException.class)
 	public void testGetInvalidIntObject() {
 		config.getInt(STRING_PROPERTY_KEY, new Integer("1"));
+	}
+
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidIntegetObject() {
+		config.getInteger(STRING_PROPERTY_KEY, new Integer("1"));
 	}
 
 	@Test
@@ -532,11 +552,14 @@ public class DefaultConfigurationTest {
 	@Test
 	public void testGetEnvironmentKey() {
 
-		System.setProperty(ENVIRONMENT_PROPERTY, "env");
-
+		System.clearProperty(ENVIRONMENT_PROPERTY);
 		config.refresh();
 
 		final String key = "key";
+		Assert.assertEquals(key, config.getEnvironmentKey(key));
+
+		System.setProperty(ENVIRONMENT_PROPERTY, "env");
+		config.refresh();
 
 		Assert.assertEquals(key + ".env", config.getEnvironmentKey(key));
 
@@ -544,7 +567,7 @@ public class DefaultConfigurationTest {
 	}
 
 	@Test
-	public void testUseEnvironmentKey() {
+	public void testUseEnvironmentSuffixKey() {
 
 		System.clearProperty(ENVIRONMENT_PROPERTY);
 		config.refresh();
@@ -559,6 +582,34 @@ public class DefaultConfigurationTest {
 		Assert.assertTrue(config.useEnvironmentKey("key"));
 
 		System.clearProperty(ENVIRONMENT_PROPERTY);
+	}
+
+	@Test
+	public void testUseEnvironmentProfile() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		String env = "config_test";
+
+		String key = "simple.stringPropertyKey";
+		String value = "simplePropertyValue";
+		String profileValue = "profileValue";
+
+		Assert.assertEquals(value, config.get(key));
+
+		System.setProperty(PROFILE_PROPERTY, env);
+		config.refresh();
+
+		//Profile is set but no property on tht profile is set
+		Assert.assertEquals(value, config.get(key));
+
+		config.addProperty(key + "." + env, profileValue);
+
+		//Profile is set and property key with profile is set
+		Assert.assertEquals(profileValue, config.get(key));
+
+		System.clearProperty(PROFILE_PROPERTY);
 	}
 
 	@Test

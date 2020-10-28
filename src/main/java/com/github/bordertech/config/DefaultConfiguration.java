@@ -824,10 +824,6 @@ public class DefaultConfiguration implements Configuration {
 	private void substitute(final String aKey) {
 
 		String value = backing.get(aKey);
-		if (value == null) {
-			return;
-		}
-
 		String newValue = StringSubstitutor.replace(value, backing);
 
 		if (StringUtils.equals(value, newValue)) {
