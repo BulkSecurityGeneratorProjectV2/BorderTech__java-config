@@ -111,42 +111,18 @@ already.defined.key+=value2,value3
 
 `Config.getInstance().get("already.defined.key")` returns `value1,value2,value3`
 
-### Environment Suffix
-
-Deprecated. The flexibility of when the Environment Suffix can be set makes it difficult to keep a consistent
-set of properties at runtime. Due to this flexibility it is suggested that you use [Profiles](#Profiles) as 
-the replacement solution. It has been marked as deprecated and with be removed in the next major release. 
-
-It is possible to define properties to only take effect in a certain environment.
-
-When the runtime property `bordertech.config.environment` is set, it is used as the suffix for each property lookup:
-
-``` java properties
-## MOCK Environment
-bordertech.config.environment=MOCK
-
-my.example.property.MOCK=mocking
-my.example.property.PROD=proding
-my.example.property=defaulting
-```
-
-If no property exists with the current environment suffix then the default property (ie no suffix) value is used.
-
 ### Profiles
 Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
 We can activate these profiles in different environments to set(override) the properties we need. 
-The profile property can be defined as either an environment variable or a system property. If both are defined,
-the system property will take precedence before the environment variable.
+The profile property can be defined as either an environment variable or a JVM system property. 
 
 This profile property is a special property and cannot be overridden within your configuration definition. If a profile 
-is set, it is only appended as a suffix to a key to determine if there is a defined property override for the key.
+is set, it is only appended as a suffix to a key to determine if there is a profile property override for the key.
 
-The profile property cannot be used in variable substitution for your properties in the configuration.
-
-When an environment or system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
+When an environment variable or JVM system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
 ``` java properties
-## MOCK Environment set as an Environment or System property only
+## MOCK Environment set as an Environment or JVM System property only
 bordertech.config.profile=MOCK
 
 my.example.property.MOCK=mocking
@@ -154,7 +130,13 @@ my.example.property.PROD=proding
 my.example.property=defaulting
 ```
 
-If no profile property exists within the current environment then the Environment Suffix feature is used
+The Environment Suffix `bordertech.config.environment` feature has been deprecated and will be removed in the next
+major release but is still honoured within the profile feature.
+
+The order of precedence:
+* `bordertech.config.profile` defined as a JVM System Property
+* `bordertech.config.profile` defined as an Environment Variable
+* `bordertech.config.environment` defined as a property anywhere(Deprecated - to be removed next major release)
 
 ### Touchfile
 
@@ -269,38 +251,25 @@ If the `bordertech.config.spi.append.default` is true the Default Configuration 
 
 ### Best Practice
 
-Anything that can be used across multiple applications should be defined at the server level
+Using profiles, define and deploy your `profile.properties` to your server environment and include this file in one of the
+resource loader property files you have configured. This profile property file could contain:
+- Hostnames
+- Database Urls
+- Proxy host/ports
+- common reference urls
+- anything you think can be reused by all applications
 
-Properties that are system specific are best set in the environment
-e.g. hostnames, url, proxy hosts/ports non proxy hosts. 
-
-Properties that are application specific are best set in the application
-And can access the environment and override/append as required.
-
-* Prod
-    * path/to/location/on/server/environment-defaults.properties (Prod values)
-    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = PROD
-    * App1
-        * bordertech-app.properties
-    * App2
-        * bordertech-app.properties
-* Test
-    * path/to/location/on/server/environment-defaults.properties (Test values)
-    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = TEST
-    * App1
-        * bordertech-app.properties
-    * App2
-        * bordertech-app.properties
-* Dev
-    * path/to/location/on/server/environment-defaults.properties (Dev values)
-    * System Properties if required BT_CONFIG_FILE, bordertech.config.profile = DEV 
-    * App1
-        * bordertech-app.properties
-    * App2
-        * bordertech-app.properties
-* Common Configuration Library 
-    * bordertech-defaults.properties (includes path/to/location/on/server/environment-defaults.properties)
-    * Configuration implementation(if not using Default Configuration)
+Using the Default configuration as the example and setting up a Test profile:
+- Create `config-profile.properties` containing your Test profile environment's properties:
+    - e.g. Test profile `config.profile.hostname=testhostname`
+- Deploy `config-profile.propertires` to `/some/path/on/server/` in your Test environment.
+- Add an `include=/some/path/on/server/config-profile.properties` reference to one of these resources:
+    - `bordertech-defaults.properties`
+    - `bordertech-app.properties`
+    - `bordertech-local.properties`
+- The `config.profile.hostname` can be accessed after the include `config-profile.properties` definition
+    - e.g. in `bordertech-app.properties` define `app.url=https://${config.profile.hostname}/app/whatever/the/path`
+- When in an application in the Test env `Config.getInstance.getString("app.url")` will return `https://testhostname/app/whatever/the/path`
 
 ## Contributing
 
