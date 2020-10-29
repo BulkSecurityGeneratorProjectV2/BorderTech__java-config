@@ -102,7 +102,18 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("substitute.part1And2And3Key", "part1Value+part2Value+part3Value");
 		assertPropertyEquals("substitute.combinedKey", "multiPart1ValuemultiPart2Value");
 		assertPropertyEquals("substitute.reurse", "${substitute.recurse}");
-		assertPropertyEquals("substitute.key.not.defined.in.value", "${this.key.is.not.defined}");
+		assertPropertyEquals("substitute.key.not.defined.in.value", "${this.key.is.not.defined.initially}");
+		assertPropertyEquals("substitute.key.with.profile.in.value", "prefix_${bordertech.config.profile}_suffix");
+
+		config.setProperty("this.key.is.not.defined.initially", "isNowDefined");
+
+		assertPropertyEquals("substitute.key.not.defined.in.value", "isNowDefined");
+
+		config.setProperty(PROFILE_PROPERTY, "a_profile");
+
+		assertPropertyEquals("substitute.key.with.profile.in.value", "prefix_a_profile_suffix");
+
+		config.clearProperty(PROFILE_PROPERTY);
 	}
 
 	@Test
@@ -458,7 +469,7 @@ public class DefaultConfigurationTest {
 	public void testClear() {
 		Assert.assertFalse(config.isEmpty());
 		config.clear();
-		Assert.assertTrue(config.isEmpty());
+		Assert.assertTrue("Config should be cleared", config.isEmpty());
 	}
 
 	@Test
@@ -609,7 +620,16 @@ public class DefaultConfigurationTest {
 		//Profile is set and property key with profile is set
 		Assert.assertEquals(profileValue, config.get(key));
 
+		config.addProperty(PROFILE_PROPERTY, env + "second");
+
+		Assert.assertEquals(value, config.get(key));
+
+		config.addProperty(key + "." + env + "second", profileValue + "Second");
+
+		Assert.assertEquals(profileValue + "Second", config.get(key));
+
 		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
 	}
 
 	@Test

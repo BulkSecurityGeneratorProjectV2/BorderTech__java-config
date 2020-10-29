@@ -4,6 +4,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -282,8 +283,6 @@ public class DefaultConfiguration implements Configuration {
 
 		recordMessage("Working directory is " + workingDir);
 
-		setEnvironmentProfile();
-
 		for (String resourceName : resourceLoadOrder) {
 			loadTop(resourceName);
 		}
@@ -297,6 +296,8 @@ public class DefaultConfiguration implements Configuration {
 			recordMessage("Loading from environment properties");
 			loadEnvironmentProperties();
 		}
+
+		setEnvironmentProfile();
 
 		// Check if environment set
 		checkEnvironmentProperty();
@@ -723,7 +724,8 @@ public class DefaultConfiguration implements Configuration {
 	 * If both are defined, system property overrides and environment property
 	 */
 	private void setEnvironmentProfile() {
-		environmentProfile = System.getProperty(PROFILE_PROPERTY, System.getenv().get(PROFILE_PROPERTY));
+
+		environmentProfile = ObjectUtils.firstNonNull(backing.get(PROFILE_PROPERTY), System.getProperty(PROFILE_PROPERTY), System.getenv().get(PROFILE_PROPERTY));
 
 		if (StringUtils.isBlank(environmentProfile)) {
 			recordMessage("Environment Profile Property <" + PROFILE_PROPERTY + "> has not been defined.");
@@ -1320,7 +1322,14 @@ public class DefaultConfiguration implements Configuration {
 	 * @return the property value or null
 	 */
 	protected String get(final String key) {
-		return backing.get(getKey(key));
+		String result = backing.get(getKey(key));
+
+		if (StringUtils.isNotBlank(result)) {
+			//Final substitution check
+			result = StringSubstitutor.replace(result, backing);
+		}
+
+		return result;
 	}
 
 	/**
@@ -1357,6 +1366,7 @@ public class DefaultConfiguration implements Configuration {
 		subcontextCache.clear();
 		// Check if environment changed
 		checkEnvironmentProperty();
+		setEnvironmentProfile();
 	}
 
 	/**
