@@ -116,10 +116,7 @@ Profiles allow you to map properties to different profiles - for example, dev, t
 We can activate these profiles in different environments to set(override) the properties we need. 
 The profile property can be defined as either an environment variable or a JVM system property. 
 
-This profile property is a special property and cannot be overridden within your configuration definition. If a profile 
-is set, it is only appended as a suffix to a key to determine if there is a profile property override for the key.
-
-When an environment variable or JVM system property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
+When a property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
 ``` java properties
 ## MOCK Environment set as an Environment or JVM System property only
@@ -134,8 +131,7 @@ The Environment Suffix `bordertech.config.environment` feature has been deprecat
 major release but is still honoured within the profile feature.
 
 The order of precedence:
-- `bordertech.config.profile` defined as a JVM System Property
-- `bordertech.config.profile` defined as an Environment Variable
+- `bordertech.config.profile` defined as a property anywhere
 - `bordertech.config.environment` defined as a property anywhere(Deprecated - to be removed next major release)
 
 ### Touchfile
