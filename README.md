@@ -134,9 +134,9 @@ The Environment Suffix `bordertech.config.environment` feature has been deprecat
 major release but is still honoured within the profile feature.
 
 The order of precedence:
-* `bordertech.config.profile` defined as a JVM System Property
-* `bordertech.config.profile` defined as an Environment Variable
-* `bordertech.config.environment` defined as a property anywhere(Deprecated - to be removed next major release)
+- `bordertech.config.profile` defined as a JVM System Property
+- `bordertech.config.profile` defined as an Environment Variable
+- `bordertech.config.environment` defined as a property anywhere(Deprecated - to be removed next major release)
 
 ### Touchfile
 
@@ -261,14 +261,14 @@ resource loader property files you have configured. This profile property file c
 
 Using the Default configuration as the example and setting up a Test profile:
 - Create `config-profile.properties` containing your Test profile environment's properties:
-    - e.g. Test profile `config.profile.hostname=testhostname`
+  - e.g. Test profile `config.profile.hostname=testhostname`
 - Deploy `config-profile.propertires` to `/some/path/on/server/` in your Test environment.
 - Add an `include=/some/path/on/server/config-profile.properties` reference to one of these resources:
-    - `bordertech-defaults.properties`
-    - `bordertech-app.properties`
-    - `bordertech-local.properties`
+  - `bordertech-defaults.properties`
+  - `bordertech-app.properties`
+  - `bordertech-local.properties`
 - The `config.profile.hostname` can be accessed after the include `config-profile.properties` definition
-    - e.g. in `bordertech-app.properties` define `app.url=https://${config.profile.hostname}/app/whatever/the/path`
+  - e.g. in `bordertech-app.properties` define `app.url=https://${config.profile.hostname}/app/whatever/the/path`
 - When in an application in the Test env `Config.getInstance.getString("app.url")` will return `https://testhostname/app/whatever/the/path`
 
 ## Contributing
