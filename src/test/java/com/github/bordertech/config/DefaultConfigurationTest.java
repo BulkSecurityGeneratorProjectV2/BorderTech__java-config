@@ -131,6 +131,11 @@ public class DefaultConfigurationTest {
 	}
 
 	@Test
+	public void testIncludeWithSubstitution() {
+		Assert.assertTrue(config.getBoolean("test.property.included"));
+	}
+
+	@Test
 	public void testGetSubProperties() {
 		final int propertyCount = 7;
 		// Test without the prefix truncated

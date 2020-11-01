@@ -1456,7 +1456,7 @@ public class DefaultConfiguration implements Configuration {
 
 			// Act on "include" directives immediately
 			if (INCLUDE.equals(key)) {
-				for (String subFile : parseStringArray(value)) {
+				for (String subFile : parseStringArray(StringSubstitutor.replace(value, backing))) {
 					DefaultConfiguration.this.load(subFile);
 				}
 				return value;
