@@ -10,7 +10,6 @@
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.bordertech.config/config.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.bordertech.config%22%20AND%20a:%22config%22)
 
 ## Content
-
 - [What is Config](#what-is-config)
 - [Why use Config](#why-use-config)
 - [Getting started](#getting-started)
@@ -29,7 +28,6 @@ The [features](#features) of the [Default Configuration](https://github.com/Bord
 Projects can easily override this default implementation via the [configuration](#configuration) settings.
 
 ## Getting started
-
 Add dependency:
 
 ``` xml
@@ -62,8 +60,7 @@ my.example=a-override-value
 ## Features
 
 ### Predefined property resources
-
-The default implementation looks for the following resources:
+The default implementation looks for the following resources either as a classpath resource or a URL:
 
  - `bordertech-defaults.properties` - framework defaults
  - `bordertech-app.properties` - application properties
@@ -77,9 +74,8 @@ The resources loaded into the Configuration can be overridden via [configuration
 
 ### Include resources
 Other property files can be included from other predefined property files.
-If the "include" property is defined, it is treated as a (comma-separated) list of additional resources to load that are processed immediately within the current resource being loaded
-
-Variable substitution is not allowed for the resource name(s)
+If the "include" property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+to load that are processed immediately within the current resource being loaded
 
 ``` java properties
 include=include_resource_1.properties[,include_resource_2.properties]
@@ -87,16 +83,14 @@ include=include_resource_1.properties[,include_resource_2.properties]
 
 ### IncludeAfter resources
 Other property files can be included from the predefined property file after the current set has loaded.
-If this property is defined, it is taken as a (comma-separated) list of additional resources to load that are processed after the current (set of) resources have loaded.
-
-Variable substitution is allowed for the resource name(s)
+If this property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+to load that are processed after the current (set of) resources have loaded.
 
 ``` java properties
 includeAfter=include_resource_1.properties[,include_resource_2.properties]
 ``` 
 
 ### += Append values to predefined properties
-
 Config also allows for the ability to append values to properties already defined. 
 This is done using '+=' instead of '=' on a key-value pair. Suggested use case is you have a global default set and then
 you want to append application specific values to the default values for access within an application.
@@ -114,7 +108,7 @@ already.defined.key+=value2,value3
 ### Profiles
 Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
 We can activate these profiles in different environments to set(override) the properties we need. 
-The profile property can be defined as either an environment variable or a JVM system property. 
+The profile property can be defined as either an OS environment variable or a JVM system property. 
 
 When a property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
@@ -247,25 +241,8 @@ If the `bordertech.config.spi.append.default` is true the Default Configuration 
 
 ### Best Practice
 
-Using profiles, define and deploy your `profile.properties` to your server environment and include this file in one of the
-resource loader property files you have configured. This profile property file could contain:
-- Hostnames
-- Database Urls
-- Proxy host/ports
-- common reference urls
-- anything you think can be reused by all applications
-
-Using the Default configuration as the example and setting up a Test profile:
-- Create `config-profile.properties` containing your Test profile environment's properties:
-  - e.g. Test profile `config.profile.hostname=testhostname`
-- Deploy `config-profile.propertires` to `/some/path/on/server/` in your Test environment.
-- Add an `include=/some/path/on/server/config-profile.properties` reference to one of these resources:
-  - `bordertech-defaults.properties`
-  - `bordertech-app.properties`
-  - `bordertech-local.properties`
-- The `config.profile.hostname` can be accessed after the include `config-profile.properties` definition
-  - e.g. in `bordertech-app.properties` define `app.url=https://${config.profile.hostname}/app/whatever/the/path`
-- When in an application in the Test env `Config.getInstance.getString("app.url")` will return `https://testhostname/app/whatever/the/path`
+THe Default Configuration allows you to set the profile `bordertech.config.profile` but you would normally set the profile through a
+JVM System Property or an OS environment variable.  
 
 ## Contributing
 
