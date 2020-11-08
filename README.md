@@ -108,7 +108,8 @@ already.defined.key+=value2,value3
 ### Profiles
 Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
 We can activate these profiles in different environments to set(override) the properties we need. 
-The profile property can be defined as either an OS environment variable or a JVM system property. 
+The profile property is generally to be defined as either an OS environment variable or a JVM system property. 
+However, it can be set in a properties file which is useful in unit testing or testing on a local environment.
 
 When a property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
 
@@ -241,8 +242,8 @@ If the `bordertech.config.spi.append.default` is true the Default Configuration 
 
 ### Best Practice
 
-THe Default Configuration allows you to set the profile `bordertech.config.profile` but you would normally set the profile through a
-JVM System Property or an OS environment variable.  
+When using java-config in a container and setting specific properties for that container instance, 
+this can be achieved by property file(s) placed in the container that can be referred to and included within the application at runtime. 
 
 ## Contributing
 

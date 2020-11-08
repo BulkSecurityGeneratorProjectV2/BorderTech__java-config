@@ -137,7 +137,7 @@ public class DefaultConfigurationTest {
 
 	@Test
 	public void testGetSubProperties() {
-		final int propertyCount = 7;
+		final int propertyCount = 8;
 		// Test without the prefix truncated
 		Properties props = config.getSubProperties("simple.", false);
 		Assert.assertEquals("Incorrect number of properties", propertyCount, props.size());
@@ -431,6 +431,10 @@ public class DefaultConfigurationTest {
 			Arrays.asList("item1", "item2", "item3"), config.getList(
 				"simple.listPropertyKey"));
 
+		Assert.assertEquals("Incorrect list value for simple.listPropertyKey",
+			Arrays.asList("item1", "item2", "item3"), config.getList(
+				"simple.listWithSpacesPropertyKey"));
+
 		List<String> defaultList = Arrays.asList("default1", "default2");
 		Assert.assertEquals("Incorrect default list value for missing key",
 			defaultList, config.getList(MISSING_PROPERTY_KEY, defaultList));
@@ -496,18 +500,20 @@ public class DefaultConfigurationTest {
 		Assert.assertFalse(config.containsKey("notExpectedToFindThisKey"));
 
 		//Need to setup with env suffix
-		System.setProperty(ENVIRONMENT_PROPERTY, "suffix1");
+		System.setProperty(PROFILE_PROPERTY, "suffix1");
 		config.refresh();
 
 		Assert.assertTrue("Key does not exist", config.containsKey(ENV_SUFFIX_PROPERTY_KEY));
 		assertPropertyEquals(ENV_SUFFIX_PROPERTY_KEY, "envSuffixPropertyValueSuffix1");
 
 		//Need to setup with env suffix that has no property set
-		System.setProperty(ENVIRONMENT_PROPERTY, "suffix2");
+		System.setProperty(PROFILE_PROPERTY, "suffix2");
 		config.refresh();
 		Assert.assertTrue("Key does not exist", config.containsKey(ENV_SUFFIX_PROPERTY_KEY));
 		assertPropertyEquals(ENV_SUFFIX_PROPERTY_KEY, "envSuffixPropertyValue");
 
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
 	}
 
 	@Test
@@ -555,7 +561,7 @@ public class DefaultConfigurationTest {
 
 		String key = "stringArrayTest";
 
-		config.addProperty(key, "test1, test2,test3");
+		config.addProperty(key, "test1 , test2 , test3");
 
 		String[] result = config.getStringArray(key);
 
@@ -563,6 +569,47 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("test1", result[0]);
 		Assert.assertEquals("test2", result[1]);
 		Assert.assertEquals("test3", result[2]);
+	}
+
+	@Test
+	public void testGetProfileKey() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		final String key = "key";
+		Assert.assertEquals(key, config.getProfileKey(key));
+
+		System.setProperty(PROFILE_PROPERTY, "env");
+		config.refresh();
+
+		Assert.assertEquals(key + ".env", config.getProfileKey(key));
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		config.addOrModifyProperty(PROFILE_PROPERTY, "env1");
+
+		Assert.assertEquals(key + ".env1", config.getProfileKey(key));
+	}
+
+	@Test
+	public void testUseProfileSuffixKey() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		Assert.assertFalse(config.useProfileKey("anything"));
+
+		System.setProperty(PROFILE_PROPERTY, "env");
+
+		config.refresh();
+		Assert.assertFalse(config.useProfileKey(PROFILE_PROPERTY));
+
+		Assert.assertTrue(config.useProfileKey("key"));
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
 	}
 
 	@Test
