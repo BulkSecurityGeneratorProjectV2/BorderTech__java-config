@@ -1315,15 +1315,14 @@ public class DefaultConfiguration implements Configuration {
 	 * @return the property value or null
 	 */
 	protected String get(final String key) {
-		// Check environment property
+		// Check profile property
 		if (useProfileKey(key)) {
 			String result = backing.get(getProfileKey(key));
 			if (result != null) {
-				return StringSubstitutor.replace(result, backing);
+				return result;
 			}
 		}
-		//Final substitution check
-		return StringSubstitutor.replace(backing.get(key), backing);
+		return backing.get(key);
 	}
 
 	/**
@@ -1345,9 +1344,12 @@ public class DefaultConfiguration implements Configuration {
 			throw new IllegalArgumentException("value parameter can not be null.");
 		}
 
-		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
+		//Check for substitution variables
+		final String updatedValue = StringSubstitutor.replace(value, backing);
 
-		runtimeProperties.put(name, value);
+		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + updatedValue + "'.");
+
+		runtimeProperties.put(name, updatedValue);
 
 		handlePropertiesChanged();
 	}

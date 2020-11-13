@@ -102,18 +102,6 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("substitute.part1And2And3Key", "part1Value+part2Value+part3Value");
 		assertPropertyEquals("substitute.combinedKey", "multiPart1ValuemultiPart2Value");
 		assertPropertyEquals("substitute.reurse", "${substitute.recurse}");
-		assertPropertyEquals("substitute.key.not.defined.in.value", "${this.key.is.not.defined.initially}");
-		assertPropertyEquals("substitute.key.with.profile.in.value", "prefix_${bordertech.config.profile}_suffix");
-
-		config.setProperty("this.key.is.not.defined.initially", "isNowDefined");
-
-		assertPropertyEquals("substitute.key.not.defined.in.value", "isNowDefined");
-
-		config.setProperty(PROFILE_PROPERTY, "a_profile");
-
-		assertPropertyEquals("substitute.key.with.profile.in.value", "prefix_a_profile_suffix");
-
-		config.clearProperty(PROFILE_PROPERTY);
 	}
 
 	@Test
@@ -167,6 +155,14 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals(STRING_PROPERTY_KEY, "simplePropertyValue");
 		config.setProperty(STRING_PROPERTY_KEY, "changedValue");
 		assertPropertyEquals(STRING_PROPERTY_KEY, "changedValue");
+
+		final String key = "aNewPropertyKey";
+
+		config.setProperty(key, "${" + STRING_PROPERTY_KEY + "} with other details");
+		assertPropertyEquals(key, "changedValue with other details");
+
+		config.setProperty(key, "${keyDoesNotExist} with other details");
+		assertPropertyEquals(key, "${keyDoesNotExist} with other details");
 	}
 
 	@Test
