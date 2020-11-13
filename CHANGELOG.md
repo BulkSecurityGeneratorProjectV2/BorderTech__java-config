@@ -5,7 +5,7 @@
 ## 1.0.7
 
 ### API Changes
-* * Introduction of profile property `bordertech.config.profile` to replace environment property.
+* Introduction of profile property `bordertech.config.profile` to replace environment property.
 
 ### Enhancements
 * Refactor of substitution code to use apache commons text
