@@ -2,6 +2,16 @@
 
 ## Release in-progress
 
+## 1.0.7
+
+### API Changes
+* Introduction of profile property `bordertech.config.profile` to replace environment property.
+
+### Enhancements
+* Refactor of substitution code to use apache commons text
+* includes can define substitution variables e.g. `include=${previously.defined.property.key}/special-file.properties`
+* Increase in unit tests and code coverage. 
+
 ## 1.0.6
 
 ### API Changes

@@ -1,14 +1,23 @@
 package com.github.bordertech.config;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
+
+import static com.github.bordertech.config.DefaultConfiguration.ENVIRONMENT_PROPERTY;
+import static com.github.bordertech.config.DefaultConfiguration.PROFILE_PROPERTY;
 
 /**
  * DefaultConfiguration_Test - JUnit tests for {@link DefaultConfiguration}.
@@ -60,6 +69,11 @@ public class DefaultConfigurationTest {
 	 */
 	private static final String BOOLEAN_FALSE_PROPERTY_KEY = "simple.booleanFalsePropertyKey";
 
+	/**
+	 * The value for this property should be "simplePropertyValue".
+	 */
+	private static final String ENV_SUFFIX_PROPERTY_KEY = "envSuffix.propertyKey";
+
 	@Before
 	public void loadProperties() {
 		config = new DefaultConfiguration(
@@ -69,15 +83,16 @@ public class DefaultConfigurationTest {
 	@Test
 	public void testSimpleProperties() {
 		Assert.assertNull("Missing properties should be null", config.get(
-				"simple.nonExistantPropertyKey"));
+			"simple.nonExistantPropertyKey"));
 		Assert.assertEquals("Incorrect default value for missing property", "defaultValue", config.
-				getString("simple.nonExistantPropertyKey", "defaultValue"));
+			getString("simple.nonExistantPropertyKey", "defaultValue"));
 		assertPropertyEquals(EMPTY_PROPERTY_KEY, "");
 		assertPropertyEquals(STRING_PROPERTY_KEY, "simplePropertyValue");
 		assertPropertyEquals(INT_PROPERTY_KEY, "123");
 		assertPropertyEquals(BOOLEAN_TRUE_PROPERTY_KEY, "true");
 		assertPropertyEquals(BOOLEAN_FALSE_PROPERTY_KEY, "false");
 		assertPropertyEquals("simple.listPropertyKey", "item1,item2,item3");
+		assertPropertyEquals("test.plus.equals", "first,second");
 	}
 
 	@Test
@@ -95,11 +110,22 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("test.definedAfterInclude", "mainValue");
 		assertPropertyEquals("test.definedBeforeIncludeAfter", "includeAfterValue");
 		assertPropertyEquals("test.definedAfterIncludeAfter", "includeAfterValue");
+
+		Assert.assertTrue(config.getBoolean("test.definedAfterIncludeAfterWithSubstitution"));
+		Assert.assertTrue(config.getBoolean("test.includeAfter.secondary"));
+
+		//This is to test that the last includeAfter overrides this property
+		assertPropertyEquals("test.includeAfter.secondaryString", "secondary");
+	}
+
+	@Test
+	public void testIncludeWithSubstitution() {
+		Assert.assertTrue(config.getBoolean("test.property.included"));
 	}
 
 	@Test
 	public void testGetSubProperties() {
-		final int propertyCount = 7;
+		final int propertyCount = 8;
 		// Test without the prefix truncated
 		Properties props = config.getSubProperties("simple.", false);
 		Assert.assertEquals("Incorrect number of properties", propertyCount, props.size());
@@ -129,6 +155,14 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals(STRING_PROPERTY_KEY, "simplePropertyValue");
 		config.setProperty(STRING_PROPERTY_KEY, "changedValue");
 		assertPropertyEquals(STRING_PROPERTY_KEY, "changedValue");
+
+		final String key = "aNewPropertyKey";
+
+		config.setProperty(key, "${" + STRING_PROPERTY_KEY + "} with other details");
+		assertPropertyEquals(key, "changedValue with other details");
+
+		config.setProperty(key, "${keyDoesNotExist} with other details");
+		assertPropertyEquals(key, "${keyDoesNotExist} with other details");
 	}
 
 	@Test
@@ -136,6 +170,24 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals(STRING_PROPERTY_KEY, "simplePropertyValue");
 		config.addProperty(STRING_PROPERTY_KEY, "addedValue");
 		assertPropertyEquals(STRING_PROPERTY_KEY, "simplePropertyValue,addedValue");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testAddPropertyNullKey() {
+		config.addProperty(null, "addedValue");
+		Assert.fail("IllegalArgumentException expected for null key");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testAddPropertyEmptyKey() {
+		config.addProperty("", "addedValue");
+		Assert.fail("IllegalArgumentException expected for empty key");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testAddPropertyNullValue() {
+		config.addProperty("A_DIFFERENT_KEY", null);
+		Assert.fail("IllegalArgumentException expected for null value");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -163,12 +215,17 @@ public class DefaultConfigurationTest {
 				config.getLong(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
 
 		Assert.assertEquals("Incorrect default long value for missing key",
-				Long.valueOf(MISSING_PROPERTY_VAL), config.getLong(MISSING_PROPERTY_KEY, Long.valueOf(MISSING_PROPERTY_VAL)));
+			Long.valueOf(MISSING_PROPERTY_VAL), config.getLong(MISSING_PROPERTY_KEY, Long.valueOf(MISSING_PROPERTY_VAL)));
 	}
 
 	@Test(expected = ConversionException.class)
 	public void testGetInvalidLong() {
 		config.getLong(STRING_PROPERTY_KEY);
+	}
+
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidLongObject() {
+		config.getLong(STRING_PROPERTY_KEY, Long.valueOf("1"));
 	}
 
 	@Test
@@ -178,15 +235,38 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("Incorrect int value for missing key", 0, config.getInt(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default int value for missing key", MISSING_PROPERTY_VAL,
-				config.getInt(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+			config.getInt(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
 
 		Assert.assertEquals("Incorrect default integer value for missing key",
-				Integer.valueOf(MISSING_PROPERTY_VAL), config.getInteger(MISSING_PROPERTY_KEY, Integer.valueOf(MISSING_PROPERTY_VAL)));
+			Integer.valueOf(MISSING_PROPERTY_VAL), config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+	}
+
+	@Test
+	public void testGetInteger() {
+		Assert.assertEquals("Incorrect int value for " + INT_PROPERTY_KEY, Integer.valueOf(INT_PROPERTY_VAL), config.getInteger(INT_PROPERTY_KEY, INT_PROPERTY_VAL));
+
+		Assert.assertEquals("Incorrect int value for missing key", Integer.valueOf("0"), config.getInteger(MISSING_PROPERTY_KEY, 0));
+
+		Assert.assertEquals("Incorrect default int value for missing key", Integer.valueOf(MISSING_PROPERTY_VAL),
+			config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+
+		Assert.assertEquals("Incorrect default integer value for missing key",
+			Integer.valueOf(MISSING_PROPERTY_VAL), config.getInteger(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
 	}
 
 	@Test(expected = ConversionException.class)
 	public void testGetInvalidInt() {
 		config.getInt(STRING_PROPERTY_KEY);
+	}
+
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidIntObject() {
+		config.getInt(STRING_PROPERTY_KEY, new Integer("1"));
+	}
+
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidIntegetObject() {
+		config.getInteger(STRING_PROPERTY_KEY, new Integer("1"));
 	}
 
 	@Test
@@ -196,15 +276,20 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("Incorrect short value for missing key", 0, config.getShort(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default short value for missing key", MISSING_PROPERTY_VAL, config.getShort(MISSING_PROPERTY_KEY,
-				(short) MISSING_PROPERTY_VAL));
+			(short) MISSING_PROPERTY_VAL));
 
 		Assert.assertEquals("Incorrect default short value for missing key",
-				Short.valueOf((short) MISSING_PROPERTY_VAL), config.getShort(MISSING_PROPERTY_KEY, Short.valueOf((short) MISSING_PROPERTY_VAL)));
+			Short.valueOf((short) MISSING_PROPERTY_VAL), config.getShort(MISSING_PROPERTY_KEY, Short.valueOf((short) MISSING_PROPERTY_VAL)));
 	}
 
 	@Test(expected = ConversionException.class)
 	public void testGetInvalidShort() {
 		config.getShort(STRING_PROPERTY_KEY);
+	}
+
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidShortObject() {
+		config.getShort(STRING_PROPERTY_KEY, Short.valueOf("1"));
 	}
 
 	@Test
@@ -217,7 +302,7 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("Incorrect default byte value for missing key", expectedVal, config.getByte(MISSING_PROPERTY_KEY, (byte) expectedVal));
 
 		Assert.assertEquals("Incorrect default byte value for missing key",
-				Byte.valueOf((byte) expectedVal), config.getByte(MISSING_PROPERTY_KEY, Byte.valueOf(
+			Byte.valueOf((byte) expectedVal), config.getByte(MISSING_PROPERTY_KEY, Byte.valueOf(
 				(byte) expectedVal)));
 	}
 
@@ -226,13 +311,18 @@ public class DefaultConfigurationTest {
 		config.getByte(STRING_PROPERTY_KEY);
 	}
 
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidByteObject() {
+		config.getByte(STRING_PROPERTY_KEY, Byte.valueOf("1"));
+	}
+
 	@Test
 	public void testGetBigDecimal() {
 		Assert.assertEquals("Incorrect BigDecimal value for " + INT_PROPERTY_KEY,
-				BigDecimal.valueOf(INT_PROPERTY_VAL), config.getBigDecimal(INT_PROPERTY_KEY));
+			BigDecimal.valueOf(INT_PROPERTY_VAL), config.getBigDecimal(INT_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect BigDecimal value for missing key",
-				BigDecimal.valueOf(0.0), config.getBigDecimal(MISSING_PROPERTY_KEY));
+			BigDecimal.valueOf(0.0), config.getBigDecimal(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default BigDecimal value for missing key",
 				BigDecimal.valueOf(MISSING_PROPERTY_VAL), config.getBigDecimal(MISSING_PROPERTY_KEY, BigDecimal.
@@ -264,20 +354,15 @@ public class DefaultConfigurationTest {
 
 	@Test
 	public void testGetBoolean() {
-		Assert.assertEquals("Incorrect boolean value for " + BOOLEAN_TRUE_PROPERTY_KEY,
-				true, config.getBoolean(BOOLEAN_TRUE_PROPERTY_KEY));
+		Assert.assertTrue("Incorrect boolean value for " + BOOLEAN_TRUE_PROPERTY_KEY, config.getBoolean(BOOLEAN_TRUE_PROPERTY_KEY));
 
-		Assert.assertEquals("Incorrect boolean value for " + BOOLEAN_FALSE_PROPERTY_KEY,
-				false, config.getBoolean(BOOLEAN_FALSE_PROPERTY_KEY));
+		Assert.assertFalse("Incorrect boolean value for " + BOOLEAN_FALSE_PROPERTY_KEY, config.getBoolean(BOOLEAN_FALSE_PROPERTY_KEY));
 
-		Assert.assertEquals("Incorrect boolean value for missing key",
-				false, config.getBoolean(MISSING_PROPERTY_KEY));
+		Assert.assertFalse("Incorrect boolean value for missing key", config.getBoolean(MISSING_PROPERTY_KEY));
 
-		Assert.assertEquals("Incorrect default boolean value for missing key",
-				true, config.getBoolean(MISSING_PROPERTY_KEY, true));
+		Assert.assertTrue("Incorrect default boolean value for missing key", config.getBoolean(MISSING_PROPERTY_KEY, true));
 
-		Assert.assertEquals("Incorrect default boolean value for missing key",
-				Boolean.TRUE, config.getBoolean(MISSING_PROPERTY_KEY, Boolean.TRUE));
+		Assert.assertTrue("Incorrect default boolean value for missing key", config.getBoolean(MISSING_PROPERTY_KEY, Boolean.TRUE));
 	}
 
 	@Test
@@ -287,13 +372,13 @@ public class DefaultConfigurationTest {
 				Float.parseFloat("123"), config.getFloat(INT_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect float value for missing key",
-				new Float(0.0f), config.getFloat(MISSING_PROPERTY_KEY), 0.0);
+				0.0f, config.getFloat(MISSING_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect default float value for missing key",
 				expectedVal, config.getFloat(MISSING_PROPERTY_KEY, expectedVal), 0.0);
 
 		Assert.assertEquals("Incorrect default float value for missing key",
-				Float.valueOf(MISSING_PROPERTY_VAL), config.getFloat(MISSING_PROPERTY_KEY, Float.valueOf(MISSING_PROPERTY_VAL)));
+			Float.valueOf(MISSING_PROPERTY_VAL), config.getFloat(MISSING_PROPERTY_KEY, Float.valueOf(MISSING_PROPERTY_VAL)));
 	}
 
 	@Test(expected = ConversionException.class)
@@ -301,20 +386,25 @@ public class DefaultConfigurationTest {
 		config.getFloat(STRING_PROPERTY_KEY);
 	}
 
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidFloatObject() {
+		config.getFloat(STRING_PROPERTY_KEY, Float.valueOf("0.0"));
+	}
+
 	@Test
 	public void testGetDouble() {
 		final double expectedVal = 234.0;
 		Assert.assertEquals("Incorrect double value for " + INT_PROPERTY_KEY,
-				Double.parseDouble("123"), config.getDouble(INT_PROPERTY_KEY), 0.0);
+			Double.parseDouble("123"), config.getDouble(INT_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect double value for missing key",
-				0.0, config.getDouble(MISSING_PROPERTY_KEY), 0.0);
+			0.0, config.getDouble(MISSING_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect default double value for missing key",
 				expectedVal, config.getDouble(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL), 0.0);
 
 		Assert.assertEquals("Incorrect default double value for missing key",
-				Double.valueOf(MISSING_PROPERTY_VAL), config.getDouble(MISSING_PROPERTY_KEY, Double.valueOf(MISSING_PROPERTY_VAL)));
+			Double.valueOf(MISSING_PROPERTY_VAL), config.getDouble(MISSING_PROPERTY_KEY, Double.valueOf(MISSING_PROPERTY_VAL)));
 	}
 
 	@Test(expected = ConversionException.class)
@@ -322,19 +412,28 @@ public class DefaultConfigurationTest {
 		config.getDouble(STRING_PROPERTY_KEY);
 	}
 
+	@Test(expected = ConversionException.class)
+	public void testGetInvalidDoubleObject() {
+		config.getDouble(STRING_PROPERTY_KEY, Double.valueOf("1.0"));
+	}
+
 	@Test
 	public void testGetList() {
 		Assert.assertEquals("Incorrect list value for " + STRING_PROPERTY_KEY,
-				Arrays.asList(new String[]{"simplePropertyValue"}), config.getList(
+			Collections.singletonList("simplePropertyValue"), config.getList(
 				STRING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect list value for simple.listPropertyKey",
-				Arrays.asList(new String[]{"item1", "item2", "item3"}), config.getList(
+			Arrays.asList("item1", "item2", "item3"), config.getList(
 				"simple.listPropertyKey"));
 
-		List<String> defaultList = Arrays.asList(new String[]{"default1", "default2"});
+		Assert.assertEquals("Incorrect list value for simple.listPropertyKey",
+			Arrays.asList("item1", "item2", "item3"), config.getList(
+				"simple.listWithSpacesPropertyKey"));
+
+		List<String> defaultList = Arrays.asList("default1", "default2");
 		Assert.assertEquals("Incorrect default list value for missing key",
-				defaultList, config.getList(MISSING_PROPERTY_KEY, defaultList));
+			defaultList, config.getList(MISSING_PROPERTY_KEY, defaultList));
 	}
 
 	@Test
@@ -345,10 +444,20 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals("key1", "value1", props);
 		assertPropertyEquals("key2", "value2", props);
 		assertPropertyEquals("key3", "value3", props);
+
+		Properties props2 = config.getProperties();
+		Assert.assertNotEquals(props, config.getProperties());
+		Assert.assertEquals(props2, config.getProperties());
 	}
 
 	@Test
 	public void testRefresh() {
+		String listenMsg = "propertyChangeHappened";
+		final String[] listen = new String[1];
+		Assert.assertNull(listen[0]);
+
+		Config.addPropertyChangeListener(evt -> listen[0] = listenMsg);
+
 		String orig = "simplePropertyValue";
 		String newValue = "newvalue";
 		assertPropertyEquals(STRING_PROPERTY_KEY, orig);
@@ -356,12 +465,249 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals(STRING_PROPERTY_KEY, newValue);
 		config.refresh();
 		assertPropertyEquals(STRING_PROPERTY_KEY, orig);
+
+		Assert.assertEquals(listenMsg, listen[0]);
+	}
+
+
+	@Test
+	public void testClear() {
+		Assert.assertFalse(config.isEmpty());
+		config.clear();
+		Assert.assertTrue("Config should be cleared", config.isEmpty());
+	}
+
+	@Test
+	public void testClearProperty() {
+
+		String anyKey = "ANY_KEY";
+		String anyValue = "ANY_VALUE";
+		config.addProperty(anyKey, anyValue);
+		Assert.assertEquals(anyValue, config.getString(anyKey));
+		config.clearProperty(anyKey);
+		Assert.assertNull(config.getString(anyKey));
+	}
+
+	@Test
+	public void testContainsKey() {
+		Assert.assertTrue("Key does not exist but", config.containsKey(ENV_SUFFIX_PROPERTY_KEY));
+		assertPropertyEquals(ENV_SUFFIX_PROPERTY_KEY, "envSuffixPropertyValue");
+
+		Assert.assertFalse(config.containsKey("notExpectedToFindThisKey"));
+
+		//Need to setup with env suffix
+		System.setProperty(PROFILE_PROPERTY, "suffix1");
+		config.refresh();
+
+		Assert.assertTrue("Key does not exist", config.containsKey(ENV_SUFFIX_PROPERTY_KEY));
+		assertPropertyEquals(ENV_SUFFIX_PROPERTY_KEY, "envSuffixPropertyValueSuffix1");
+
+		//Need to setup with env suffix that has no property set
+		System.setProperty(PROFILE_PROPERTY, "suffix2");
+		config.refresh();
+		Assert.assertTrue("Key does not exist", config.containsKey(ENV_SUFFIX_PROPERTY_KEY));
+		assertPropertyEquals(ENV_SUFFIX_PROPERTY_KEY, "envSuffixPropertyValue");
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+	}
+
+	@Test
+	public void testGetKeys() {
+		config.clear();
+		config.addProperty("aKeyFirst", "NotMatter");
+		config.addProperty("aKeySecond", "NotMatter2");
+
+		Iterator<String> iter = config.getKeys();
+
+		Assert.assertTrue(iter.hasNext());
+		Assert.assertEquals("aKeyFirst", iter.next());
+		Assert.assertTrue(iter.hasNext());
+		Assert.assertEquals("aKeySecond", iter.next());
+		Assert.assertFalse(iter.hasNext());
+
+
+		iter = config.getKeys("aKeySecond");
+
+		Assert.assertTrue(iter.hasNext());
+		Assert.assertEquals("aKeySecond", iter.next());
+		Assert.assertFalse(iter.hasNext());
+	}
+
+	@Test
+	public void testConstructorMissingResourceLoader() {
+		assertMissingResourceLoader(new DefaultConfiguration(null));
+		assertMissingResourceLoader(new DefaultConfiguration(new String[0]));
+	}
+
+	private void assertMissingResourceLoader(DefaultConfiguration config) {
+		Assert.assertNotNull(config);
+		Assert.assertEquals("DEFAULTS-def", config.getString("test.override.defaults"));
+	}
+
+	@Test
+	public void testGetStringArray() {
+
+		Assert.assertEquals(0, config.getStringArray("NON_EXISTENT_KEY").length);
+
+		Assert.assertEquals(0, config.getStringArray("simple.emptyPropertyKey").length);
+
+		Assert.assertEquals(1, config.getStringArray("simple.stringPropertyKey").length);
+		Assert.assertEquals("simplePropertyValue", config.getStringArray("simple.stringPropertyKey")[0]);
+
+		String key = "stringArrayTest";
+
+		config.addProperty(key, "test1 , test2 , test3");
+
+		String[] result = config.getStringArray(key);
+
+		Assert.assertEquals(3, result.length);
+		Assert.assertEquals("test1", result[0]);
+		Assert.assertEquals("test2", result[1]);
+		Assert.assertEquals("test3", result[2]);
+	}
+
+	@Test
+	public void testGetProfileKey() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		final String key = "key";
+		Assert.assertEquals(key, config.getProfileKey(key));
+
+		System.setProperty(PROFILE_PROPERTY, "env");
+		config.refresh();
+
+		Assert.assertEquals(key + ".env", config.getProfileKey(key));
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		config.addOrModifyProperty(PROFILE_PROPERTY, "env1");
+
+		Assert.assertEquals(key + ".env1", config.getProfileKey(key));
+	}
+
+	@Test
+	public void testUseProfileSuffixKey() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		Assert.assertFalse(config.useProfileKey("anything"));
+
+		System.setProperty(PROFILE_PROPERTY, "env");
+
+		config.refresh();
+		Assert.assertFalse(config.useProfileKey(PROFILE_PROPERTY));
+
+		Assert.assertTrue(config.useProfileKey("key"));
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+	}
+
+	@Test
+	public void testGetEnvironmentKey() {
+
+		System.clearProperty(ENVIRONMENT_PROPERTY);
+		config.refresh();
+
+		final String key = "key";
+		Assert.assertEquals(key, config.getEnvironmentKey(key));
+
+		System.setProperty(ENVIRONMENT_PROPERTY, "env");
+		config.refresh();
+
+		Assert.assertEquals(key + ".env", config.getEnvironmentKey(key));
+
+		System.clearProperty(ENVIRONMENT_PROPERTY);
+	}
+
+	@Test
+	public void testUseEnvironmentSuffixKey() {
+
+		System.clearProperty(ENVIRONMENT_PROPERTY);
+		config.refresh();
+
+		Assert.assertFalse(config.useEnvironmentKey("anything"));
+
+		System.setProperty(ENVIRONMENT_PROPERTY, "env");
+
+		config.refresh();
+		Assert.assertFalse(config.useEnvironmentKey(ENVIRONMENT_PROPERTY));
+
+		Assert.assertTrue(config.useEnvironmentKey("key"));
+
+		System.clearProperty(ENVIRONMENT_PROPERTY);
+	}
+
+	@Test
+	public void testUseEnvironmentProfile() {
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+
+		String env = "config_test";
+
+		String key = "simple.stringPropertyKey";
+		String value = "simplePropertyValue";
+		String profileValue = "profileValue";
+
+		Assert.assertEquals(value, config.get(key));
+
+		System.setProperty(PROFILE_PROPERTY, env);
+		config.refresh();
+
+		//Profile is set but no property on tht profile is set
+		Assert.assertEquals(value, config.get(key));
+
+		config.addProperty(key + "." + env, profileValue);
+
+		//Profile is set and property key with profile is set
+		Assert.assertEquals(profileValue, config.get(key));
+
+		config.addProperty(PROFILE_PROPERTY, env + "second");
+
+		Assert.assertEquals(value, config.get(key));
+
+		config.addProperty(key + "." + env + "second", profileValue + "Second");
+
+		Assert.assertEquals(profileValue + "Second", config.get(key));
+
+		System.clearProperty(PROFILE_PROPERTY);
+		config.refresh();
+	}
+
+	@Test
+	public void testSubset() {
+		Configuration subConfig = config.subset("simple.propertiesPropertyKey");
+		Properties props = subConfig.getProperties("simple.propertiesPropertyKey");
+
+		Assert.assertEquals("Incorrect number of properties", 3, props.size());
+		assertPropertyEquals("key1", "value1", props);
+		assertPropertyEquals("key2", "value2", props);
+		assertPropertyEquals("key3", "value3", props);
+	}
+
+	@Test
+	public void testLoadWithPhysicalFile() throws Exception {
+
+		Properties props = new Properties();
+		props.setProperty("physical.file.include", "physicalFileIncludeValue");
+		props.store(new FileWriter(new File("./target/DefaultConfigTestInclude.properties")), null);
+
+		DefaultConfiguration config = new DefaultConfiguration(
+			"com/github/bordertech/config/DefaultConfigurationTest_include.properties");
+
+		Assert.assertEquals("physicalFileIncludeValue", config.getString("physical.file.include"));
 	}
 
 	/**
 	 * Asserts that the configuration contains the given key/value.
 	 *
-	 * @param key the property key
+	 * @param key      the property key
 	 * @param expected the expected property value.
 	 */
 	private void assertPropertyEquals(final String key, final Object expected) {

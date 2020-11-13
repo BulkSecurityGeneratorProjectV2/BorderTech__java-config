@@ -10,7 +10,6 @@
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.bordertech.config/config.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.bordertech.config%22%20AND%20a:%22config%22)
 
 ## Content
-
 - [What is Config](#what-is-config)
 - [Why use Config](#why-use-config)
 - [Getting started](#getting-started)
@@ -29,7 +28,6 @@ The [features](#features) of the [Default Configuration](https://github.com/Bord
 Projects can easily override this default implementation via the [configuration](#configuration) settings.
 
 ## Getting started
-
 Add dependency:
 
 ``` xml
@@ -62,8 +60,7 @@ my.example=a-override-value
 ## Features
 
 ### Predefined property resources
-
-The default implementation looks for the following resources:
+The default implementation looks for the following resources either as a classpath resource or a URL:
 
  - `bordertech-defaults.properties` - framework defaults
  - `bordertech-app.properties` - application properties
@@ -76,29 +73,61 @@ The priority of the properties is in reverse order to the list of resources (i.e
 The resources loaded into the Configuration can be overridden via [configuration](#configuration) settings.
 
 ### Include resources
-
-Other property files can be included from the predefined property files:
+Other property files can be included from other predefined property files.
+If the "include" property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+to load that are processed immediately within the current resource being loaded
 
 ``` java properties
-include=another.properties
+include=include_resource_1.properties[,include_resource_2.properties]
 ```
 
-### Environment Suffix
-
-It is possible to define properties to only take effect in a certain environment.
-
-When the runtime property `bordertech.config.environment` is set, it is used as the suffix for each property lookup:
+### IncludeAfter resources
+Other property files can be included from the predefined property file after the current set has loaded.
+If this property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+to load that are processed after the current (set of) resources have loaded.
 
 ``` java properties
-## MOCK Environment
-bordertech.config.environment=MOCK
+includeAfter=include_resource_1.properties[,include_resource_2.properties]
+``` 
+
+### += Append values to predefined properties
+Config also allows for the ability to append values to properties already defined. 
+This is done using '+=' instead of '=' on a key-value pair. Suggested use case is you have a global default set and then
+you want to append application specific values to the default values for access within an application.
+ 
+ ``` java properties
+# Defined in default.properties
+already.defined.key+=value1
+
+#Defined in app.properties
+already.defined.key+=value2,value3
+``` 
+
+`Config.getInstance().get("already.defined.key")` returns `value1,value2,value3`
+
+### Profiles
+Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
+We can activate these profiles in different environments to set(override) the properties we need. 
+The profile property is generally to be defined as either an OS environment variable or a JVM system property. 
+However, it can be set in a properties file which is useful in unit testing or testing on a local environment.
+
+When a property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
+
+``` java properties
+## MOCK Environment set as an Environment or JVM System property only
+bordertech.config.profile=MOCK
 
 my.example.property.MOCK=mocking
 my.example.property.PROD=proding
 my.example.property=defaulting
 ```
 
-If no property exists with the current environment suffix then the default property (ie no suffix) value is used.
+The Environment Suffix `bordertech.config.environment` feature has been deprecated and will be removed in the next
+major release but is still honoured within the profile feature.
+
+The order of precedence:
+- `bordertech.config.profile` defined as a property anywhere
+- `bordertech.config.environment` defined as a property anywhere(Deprecated - to be removed next major release)
 
 ### Touchfile
 
@@ -174,7 +203,8 @@ The following methods in the `Config` class are useful for unit testing:
 
 ## Configuration
 
-The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. The file name can be overriden via a System or Environment property `BT_CONFIG_FILE`.
+The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. 
+The default `bordertech-config.properties` file name can also be overriden via a System or Environment property `BT_CONFIG_FILE`.
 
 The following options can be set:-
 
@@ -206,7 +236,14 @@ bordertech.config.resource.append=my-project.properties
 
 [ConfigurationLoader](https://github.com/BorderTech/java-config/blob/master/src/main/java/com/github/bordertech/config/ConfigurationLoader.java) is the [SPI](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) interface for classes that can load a custom configuration.
 
-By default, the SPI lookup is enabled and if found, will be appended to the default implementation.
+By default, the SPI lookup is enabled and if found, it will create the custom configuration
+ 
+If the `bordertech.config.spi.append.default` is true the Default Configuration will also be appended to the configuration.
+
+### Best Practice
+
+When using java-config in a container and setting specific properties for that container instance, 
+this can be achieved by property file(s) placed in the container that can be referred to and included within the application at runtime. 
 
 ## Contributing
 

@@ -1,5 +1,17 @@
 package com.github.bordertech.config;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConversionException;
+import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.impl.SimpleLog;
+import org.apache.commons.text.StringSubstitutor;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,11 +28,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,16 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.TreeSet;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConversionException;
-import org.apache.commons.configuration.MapConfiguration;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.impl.SimpleLog;
 
 /**
  * <p>
@@ -47,35 +48,26 @@ import org.apache.commons.logging.impl.SimpleLog;
  * </p>
  *
  * @author Jonathan Austin
- * @since 1.0.0
- *
  * @see Config
+ * @since 1.0.0
  */
 public class DefaultConfiguration implements Configuration {
-
-	/**
-	 * Logger for debug information.
-	 */
-	private static final Log LOG = new SimpleLog("DefaultConfig");
 
 	/**
 	 * If this parameter is defined, it is treated as a comma-separated list of additional resources to load. The
 	 * include is processed immediately.
 	 */
 	public static final String INCLUDE = "include";
-
 	/**
 	 * If this parameter is defined, it is taken as a (comma-separated) resource to load. The resource is loaded after
 	 * the current (set of) resources is loaded.
 	 */
 	public static final String INCLUDE_AFTER = "includeAfter";
-
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
 	 * end of the loading process.
 	 */
 	public static final String USE_SYSTEM_PROPERTIES = "bordertech.config.parameters.useSystemProperties";
-
 	/**
 	 * If merging System Properties this parameter controls if a system property will only overwrite an existing
 	 * property. The default is false.
@@ -84,46 +76,48 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	@Deprecated
 	public static final String USE_SYSTEM_OVERWRITEONLY = "bordertech.config.parameters.useSystemOverWriteOnly";
-
 	/**
 	 * If merging System Properties, this parameter can be used to define a list of attribute prefixes that are allowed
 	 * to be merged. The default is allow all System Properties to be merged.
 	 */
 	public static final String USE_SYSTEM_PREFIXES = "bordertech.config.parameters.useSystemPrefixes";
-
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the OS Environment properties will be merged
 	 * at the end of the loading process.
 	 */
 	public static final String USE_OSENV_PROPERTIES = "bordertech.config.parameters.useEnvProperties";
-
 	/**
 	 * If merging OS Environment Properties, this parameter can be used to define a list of attribute prefixes that are
 	 * allowed to be merged. The default is allow all Environment Properties to be merged.
 	 */
 	public static final String USE_OSENV_PREFIXES = "bordertech.config.parameters.useEnvPrefixes";
-
 	/**
 	 * If this parameter is set to true, then after loading the parameters, they will be dumped to the console.
 	 */
 	public static final String DUMP = "bordertech.config.parameters.dump.console";
-
 	/**
 	 * If this parameter is set, then after loading the parameters, they will be dumped to the specified file.
 	 */
 	public static final String DUMP_FILE = "bordertech.config.parameters.dump.file";
-
+	/**
+	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
+	 * @deprecated Use {@link #PROFILE_PROPERTY} to define the profile property
+	 */
+	@Deprecated
+	public static final String ENVIRONMENT_PROPERTY = "bordertech.config.environment";
 	/**
 	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
 	 */
-	public static final String ENVIRONMENT_PROPERTY = "bordertech.config.environment";
-
+	public static final String PROFILE_PROPERTY = "bordertech.config.profile";
 	/**
 	 * Parameters with this prefix will be dumped into the System parameters. This feature is for handling recalcitrant
 	 * 3rd party software only - not for general use!!!
 	 */
 	public static final String SYSTEM_PARAMETERS_PREFIX = "bordertech.config.parameters.system.";
-
+	/**
+	 * Logger for debug information.
+	 */
+	private static final Log LOG = new SimpleLog("DefaultConfig");
 	/**
 	 * If this parameter is defined and resolves to true as a boolean, then the system properties will be merged at the
 	 * end of the loading process.
@@ -158,14 +152,9 @@ public class DefaultConfiguration implements Configuration {
 	// -----------------------------------------------------------------------------------------------------------------
 	// State used during loading of parameters
 	/**
-	 * The messages logged during loading of the configuration. \
+	 * The messages logged during loading of the configuration.
 	 */
 	private final StringBuilder messages = new StringBuilder();
-
-	/**
-	 * The resource being loaded. This is used for the relative form of resource loading.
-	 */
-	private final Deque<String> resources = new ArrayDeque<>();
 
 	/**
 	 * A generic object that allows us to synchronized refreshes. Required so that gets and refreshes are threadsafe
@@ -175,9 +164,14 @@ public class DefaultConfiguration implements Configuration {
 	// -----------------------------------------------------------------------------------------------------------------
 	// Implementation
 	/**
-	 * Holds the current environment suffix (if set).
+	 * Resource load order.
 	 */
-	private String currentEnvironment = null;
+	private final String[] resourceLoadOrder;
+
+	/**
+	 * Hold the current profile (if set).
+	 */
+	private String currentProfile = null;
 
 	/**
 	 * Our backing store is a Map object.
@@ -206,16 +200,6 @@ public class DefaultConfiguration implements Configuration {
 	private IncludeProperties runtimeProperties;
 
 	/**
-	 * Variables that we are in the process of substituting. This is used to detect recursive substitutions
-	 */
-	private final Set<String> substituting = new HashSet<>();
-
-	/**
-	 * Resource load order.
-	 */
-	private final String[] resourceLoadOrder;
-
-	/**
 	 * Creates a Default Configuration.
 	 */
 	public DefaultConfiguration() {
@@ -223,12 +207,14 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Creates a Default Configuration with the specified resource order.
+	 * Creates a Default Configuration with the specified resour ce order.
 	 *
 	 * @param resourceLoadOrder the resource order
 	 */
 	public DefaultConfiguration(final String... resourceLoadOrder) {
-		if (resourceLoadOrder == null || resourceLoadOrder.length == 0) {
+		if (resourceLoadOrder == null || resourceLoadOrder.length == 0 || Arrays
+			.stream(resourceLoadOrder)
+			.anyMatch(StringUtils::isBlank)) {
 			this.resourceLoadOrder = InitHelper.getDefaultResourceLoadOrder();
 		} else {
 			this.resourceLoadOrder = resourceLoadOrder;
@@ -238,39 +224,39 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
+	 * Copies information from the input stream to the output stream using a specified buffer size.
+	 *
+	 * @param in  the source stream.
+	 * @param out the destination stream.
+	 * @throws IOException if there is an error reading or writing to the streams.
+	 */
+	private static void copyStream(final InputStream in, final OutputStream out) throws IOException {
+		final byte[] buf = new byte[2048];
+		int bytesRead = in.read(buf);
+
+		while (bytesRead != -1) {
+			out.write(buf, 0, bytesRead);
+			bytesRead = in.read(buf);
+		}
+		out.flush();
+	}
+
+	// -----------------------------------------------------------------------------------------------------------------
+
+	/**
 	 * Splits the given comma-delimited string into an an array. Leading/trailing spaces in list items will be trimmed.
 	 *
 	 * @param list the String to split.
 	 * @return the split version of the list.
 	 */
 	private String[] parseStringArray(final String list) {
-		StringTokenizer tokenizer = new StringTokenizer(list, ",", false);
-		int length = tokenizer.countTokens();
-		String[] arr = new String[length];
-
-		for (int i = 0; tokenizer.hasMoreElements(); i++) {
-			arr[i] = cleanSpaces(tokenizer.nextToken());
+		if (StringUtils.isBlank(list)) {
+			return new String[0];
+		} else {
+			return list.trim().split("\\s*,\\s*");
 		}
-
-		return arr;
 	}
 
-	/**
-	 * Removes any leading/trailing spaces from the given string. This has the same effect as calling
-	 * {@link String#trim}, but is null-safe.
-	 *
-	 * @param aStr the String to trim.
-	 * @return the trimmed String, or null if the <code>aStr</code> was null.
-	 */
-	private String cleanSpaces(final String aStr) {
-		if (aStr == null) {
-			return aStr;
-		}
-
-		return aStr.trim();
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
 	/**
 	 * This method initialises most of the instance variables.
 	 */
@@ -280,9 +266,9 @@ public class DefaultConfiguration implements Configuration {
 		locations = new HashMap<>();
 
 		// subContextCache is updated on the fly so ensure no concurrent modification.
-		subcontextCache = Collections.synchronizedMap(new HashMap());
-		runtimeProperties = new IncludeProperties("Runtime: added at runtime");
-		currentEnvironment = null;
+		subcontextCache = Collections.synchronizedMap(new HashMap<>());
+		runtimeProperties = new IncludeProperties("Runtime: property added at runtime");
+		currentProfile = null;
 	}
 
 	/**
@@ -315,10 +301,12 @@ public class DefaultConfiguration implements Configuration {
 			loadEnvironmentProperties();
 		}
 
+		checkProfileProperty();
+
 		// Now perform variable substitution.
-		do {
-			// Do nothing while loop
-		} while (substitute());
+		for (String key : backing.keySet()) {
+			substitute(key);
+		}
 
 		// Dump Header Info
 		LOG.info(getDumpHeader());
@@ -336,9 +324,6 @@ public class DefaultConfiguration implements Configuration {
 		// LEGACY
 		systemProperties = getSubProperties(LEGACY_SYSTEM_PARAMETERS_PREFIX, true);
 		System.getProperties().putAll(systemProperties);
-
-		// Check if environment set
-		checkEnvironmentProperty();
 	}
 
 	/**
@@ -496,29 +481,20 @@ public class DefaultConfiguration implements Configuration {
 	 * @param resourceName the path of the resource to load from.
 	 */
 	private void loadTop(final String resourceName) {
-		try {
-			resources.push(resourceName);
 
-			load(resourceName);
+		load(resourceName);
 
-			// Now check for INCLUDE_AFTER resources
-			String includes = get(INCLUDE_AFTER);
+		if (backing.containsKey(INCLUDE_AFTER)) {
+			// First, do substitution on the INCLUDE_AFTER
+			substitute(INCLUDE_AFTER);
 
-			if (includes != null) {
-				// First, do substitution on the INCLUDE_AFTER
-				do {
-					// Looping
-				} while (substitute(INCLUDE_AFTER));
+			// Now split and process
+			String[] includeAfter = parseStringArray(get(INCLUDE_AFTER));
 
-				// Now split and process
-				String[] includeAfter = getString(INCLUDE_AFTER).split(",");
-				backing.remove(INCLUDE_AFTER);
-				for (String after : includeAfter) {
-					loadTop(after);
-				}
+			backing.remove(INCLUDE_AFTER);
+			for (String after : includeAfter) {
+				loadTop(after);
 			}
-		} finally {
-			resources.pop();
 		}
 	}
 
@@ -532,8 +508,6 @@ public class DefaultConfiguration implements Configuration {
 		boolean found = false;
 
 		try {
-			resources.push(resourceName);
-
 			// Load the resource/s from the class loader
 			List<URL> urls = findClassLoaderResources(resourceName);
 			if (!urls.isEmpty()) {
@@ -552,13 +526,10 @@ public class DefaultConfiguration implements Configuration {
 			if (!found) {
 				recordMessage("Did not find resource " + resourceName);
 			}
-
 		} catch (IOException | IllegalArgumentException ex) {
 			// Most likely a "Malformed uxxxx encoding." error, which is
 			// usually caused by a developer forgetting to escape backslashes
 			recordException(ex);
-		} finally {
-			resources.pop();
 		}
 	}
 
@@ -610,7 +581,7 @@ public class DefaultConfiguration implements Configuration {
 			// Load the contents of the resource, for comparison with existing resources.
 			byte[] urlContentBytes;
 			try (InputStream urlContentStream = url.openStream(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-				copyStream(urlContentStream, baos, 2048);
+				copyStream(urlContentStream, baos);
 				urlContentBytes = baos.toByteArray();
 			}
 			String urlContent = new String(urlContentBytes, StandardCharsets.UTF_8);
@@ -627,7 +598,6 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		return contentsList;
-
 	}
 
 	/**
@@ -645,11 +615,9 @@ public class DefaultConfiguration implements Configuration {
 			recordMessage("Loading from url " + url + "...");
 			try (ByteArrayInputStream in = new ByteArrayInputStream(buff)) {
 				// Use the "IncludeProperties" to load properties into us one at a time....
-				IncludeProperties properties = new IncludeProperties(url.toString());
-				properties.load(in);
+				new IncludeProperties(url.toString()).load(in);
 			}
 		}
-
 	}
 
 	/**
@@ -660,15 +628,14 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private void loadFileResource(final File file) throws IOException {
 
-		recordMessage("Loading from file " + filename(file) + "...");
+		final String fileName = filename(file);
 
-		// Use the "IncludeProperties" to load properties into us, one at a time....
-		IncludeProperties properties = new IncludeProperties("file:" + filename(file));
-		try (FileInputStream fin = new FileInputStream(file);
-				BufferedInputStream bin = new BufferedInputStream(fin)) {
-			properties.load(bin);
+		recordMessage("Loading from file " + fileName + "...");
+
+		try (FileInputStream fin = new FileInputStream(file); BufferedInputStream bin = new BufferedInputStream(fin)) {
+			// Use the "IncludeProperties" to load properties into us, one at a time....
+			new IncludeProperties("file:" + fileName).load(bin);
 		}
-
 	}
 
 	/**
@@ -733,32 +700,41 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	private void loadSystemProperties() {
 		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, false);
-		List<String> allowedPrefixes = getList(USE_SYSTEM_PREFIXES);
-		System.getProperties().entrySet().forEach(entry
-				-> mergeExternalProperty("System Properties", (String) entry.getKey(), (String) entry.getValue(), overWriteOnly, allowedPrefixes)
-		);
+		List<String> allowedPrefixes = Arrays.asList(getStringArray(USE_SYSTEM_PREFIXES));
+		System
+			.getProperties()
+			.forEach((key, value) -> mergeExternalProperty("System Properties",
+				(String) key,
+				(String) value,
+				overWriteOnly,
+				allowedPrefixes));
 	}
 
 	/**
 	 * Load the OS Environment Properties into Config.
 	 */
 	private void loadEnvironmentProperties() {
-		List<String> allowedPrefixes = getList(USE_OSENV_PREFIXES);
-		System.getenv().entrySet().forEach(entry
-				-> mergeExternalProperty("Environment Properties", entry.getKey(), entry.getValue(), false, allowedPrefixes)
-		);
+		List<String> allowedPrefixes = Arrays.asList(getStringArray(USE_OSENV_PREFIXES));
+		System
+			.getenv()
+			.forEach((key, value) -> mergeExternalProperty("Environment Properties", key, value, false, allowedPrefixes));
 	}
 
 	/**
 	 * Merge the external property.
 	 *
-	 * @param location the location of the properties
-	 * @param key the property key
-	 * @param value the property value
-	 * @param overWriteOnly true if only overwrite existing properties
+	 * @param location        the location of the properties
+	 * @param key             the property key
+	 * @param value           the property value
+	 * @param overWriteOnly   true if only overwrite existing properties
 	 * @param allowedPrefixes the list of allowed property prefixes
 	 */
-	private void mergeExternalProperty(final String location, final String key, final String value, final boolean overWriteOnly, final List<String> allowedPrefixes) {
+	private void mergeExternalProperty(
+		final String location,
+		final String key,
+		final String value,
+		final boolean overWriteOnly,
+		final List<String> allowedPrefixes) {
 
 		// Check for "include" keys (should not come from System or Environment Properties)
 		if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
@@ -776,14 +752,14 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		// Load property
-		load(key, value, location);
+		put(key, value, location);
 	}
 
 	/**
 	 * Check allowed prefixes.
 	 *
 	 * @param allowedPrefixes the list of allowed prefixes
-	 * @param key the key to check
+	 * @param key             the key to check
 	 * @return true if the key is an allowed prefix
 	 */
 	private boolean isAllowedKeyPrefix(final List<String> allowedPrefixes, final String key) {
@@ -800,49 +776,6 @@ public class DefaultConfiguration implements Configuration {
 			}
 		}
 		return false;
-	}
-
-	/**
-	 * Loads a single parameter into the configuration. This handles the special directives such as "include".
-	 *
-	 * @param key the parameter key.
-	 * @param value the parameter value.
-	 * @param location the location where the parameter was defined.
-	 */
-	private void load(final String key, final String value, final String location) {
-		// Recursive bit
-		if (INCLUDE.equals(key)) {
-			load(parseStringArray(value));
-		} else {
-			backing.put(key, value);
-
-			if ("yes".equals(value) || "true".equals(value)) {
-				booleanBacking.add(key);
-			} else {
-				booleanBacking.remove(key);
-			}
-
-			String history = locations.get(key);
-
-			if (history == null) {
-				history = location;
-			} else {
-				history = location + "; " + history;
-			}
-
-			locations.put(key, history);
-		}
-	}
-
-	/**
-	 * Loads the configuration from a set of files.
-	 *
-	 * @param subFiles the files to load from.
-	 */
-	private void load(final String[] subFiles) {
-		for (String subFile : subFiles) {
-			load(subFile);
-		}
 	}
 
 	/**
@@ -871,141 +804,41 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Iterates through the values, looking for values containing ${...} strings. For those that do, we substitute if
-	 * the stuff in the {...} is a defined key.
-	 *
-	 * @return true if any substitutions were made, false otherwise.
-	 */
-	private boolean substitute() {
-		boolean madeChange = false;
-
-		for (String key : backing.keySet()) {
-			madeChange = madeChange || substitute(key);
-		}
-
-		return madeChange;
-	}
-
-	/**
 	 * Performs value substitution for the given key. For values containing ${...} strings, we substitute if the stuff
 	 * in the {...} is a defined key.
 	 *
 	 * @param aKey the key to run the substitution for.
-	 * @return true if a substitutions was made, false otherwise.
 	 */
-	private boolean substitute(final String aKey) {
-		boolean madeChange = false;
+	private void substitute(final String aKey) {
 
-		if (substituting.contains(aKey)) {
-			backing.put(aKey, "");
-			booleanBacking.remove(aKey);
-			recordMessage("WARNING: Recursive substitution detected on parameter " + aKey);
-			String history = locations.get(aKey);
-			locations.put(aKey, history + "recursion detected, using null value; " + history);
-			return true;
+		String value = backing.get(aKey);
+		String newValue = StringSubstitutor.replace(value, backing);
+
+		if (StringUtils.equals(value, newValue)) {
+			return;
 		}
 
-		try {
-			substituting.add(aKey);
-
-			String value = backing.get(aKey);
-			if (value == null) {
-				return madeChange;
-			}
-
-			int start = findStartVariable(value);
-
-			if (start == -1) {
-				return madeChange;
-			}
-
-			int end = value.indexOf('}', start);
-
-			if (end == -1) {
-				return madeChange;
-			}
-
-			String variableName = value.substring(start + 2, end);
-
-			madeChange = madeChange || substitute(variableName);
-
-			String variableValue = get(variableName);
-
-			if (variableValue == null) {
-				return madeChange;
-			}
-
-			String newValue = value.substring(0, start) + variableValue + value.substring(end + 1);
-
-			madeChange = true;
-
-			backing.put(aKey, newValue);
-
-			if ("yes".equals(newValue) || "true".equals(newValue)) {
-				booleanBacking.add(aKey);
-			} else {
-				booleanBacking.remove(aKey);
-			}
-
-			// Record this substitution in the history
-			String history = locations.get(aKey);
-			history = "substitution of ${" + variableName + "}; " + history;
-			locations.put(aKey, history);
-
-			return madeChange;
-		} finally {
-			substituting.remove(aKey);
-		}
+		put(aKey, newValue, "substitution of ${" + value + "}");
 	}
 
-	/**
-	 * Finds the start of a variable name in the given string. Variables use the "${<i>variableName</i>}" notation.
-	 *
-	 * @param aKey the key to search.
-	 * @return the index of the start of a variable name in the given string, or -1 if not found.
-	 */
-	private int findStartVariable(final String aKey) {
-		if (aKey == null) {
-			return -1;
+	private void put(final String key, final String value, final String historyMsg) {
+		backing.put(key, value);
+
+		if (BooleanUtils.toBoolean(value)) {
+			booleanBacking.add(key);
+		} else {
+			booleanBacking.remove(key);
 		}
 
-		// Look for the first occurence of ${ in the parameter.
-		int index = aKey.indexOf('$');
+		String history = locations.get(key);
 
-		for (; index >= 0; index = aKey.indexOf('$', index + 1)) {
-			if (index == aKey.length() - 1) {
-				continue;
-			}
-
-			if (aKey.charAt(index + 1) != '{') {
-				continue;
-			}
-
-			// Ahh - got it
-			break; // NOPMD
+		if (history == null) {
+			history = historyMsg;
+		} else {
+			history = historyMsg + "; " + history;
 		}
 
-		return index;
-	}
-
-	/**
-	 * Copies information from the input stream to the output stream using a specified buffer size.
-	 *
-	 * @param in the source stream.
-	 * @param out the destination stream.
-	 * @param bufferSize the buffer size.
-	 * @throws IOException if there is an error reading or writing to the streams.
-	 */
-	private static void copyStream(final InputStream in, final OutputStream out, final int bufferSize)
-			throws IOException {
-		final byte[] buf = new byte[bufferSize];
-		int bytesRead = in.read(buf);
-
-		while (bytesRead != -1) {
-			out.write(buf, 0, bytesRead);
-			bytesRead = in.read(buf);
-		}
-		out.flush();
+		locations.put(key, history);
 	}
 
 	/**
@@ -1116,7 +949,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public boolean containsKey(final String key) {
-		if (useEnvironmentKey(key) && backing.containsKey(getEnvironmentKey(key))) {
+		if (useProfileKey(key) && backing.containsKey(getProfileKey(key))) {
 			return true;
 		}
 		return backing.containsKey(key);
@@ -1164,7 +997,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public boolean getBoolean(final String key) {
-		if (useEnvironmentKey(key) && booleanBacking.contains(getEnvironmentKey(key))) {
+		if (useProfileKey(key) && booleanBacking.contains(getProfileKey(key))) {
 			return true;
 		}
 		return booleanBacking.contains(key);
@@ -1177,10 +1010,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public Boolean getBoolean(final String key, final Boolean defaultValue) {
-		if (containsKey(key)) {
-			return getBoolean(key);
-		}
-		return defaultValue;
+		return containsKey(key) ? getBoolean(key) : defaultValue;
 	}
 
 	@Override
@@ -1322,12 +1152,12 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	@Override
-	public List getList(final String key) {
-		return getList(key, new ArrayList(1));
+	public List<Object> getList(final String key) {
+		return getList(key, new ArrayList<>(1));
 	}
 
 	@Override
-	public List getList(final String key, final List defaultValue) {
+	public List<Object> getList(final String key, final List defaultValue) {
 		if (containsKey(key)) {
 			return Arrays.asList(getStringArray(key));
 		} else {
@@ -1383,7 +1213,7 @@ public class DefaultConfiguration implements Configuration {
 				throw new IllegalArgumentException("Malformed property: " + pair);
 			}
 
-			props.put(pair.substring(0, index), pair.substring(index + 1, pair.length()));
+			props.put(pair.substring(0, index), pair.substring(index + 1));
 		}
 
 		return props;
@@ -1406,13 +1236,7 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public String[] getStringArray(final String key) {
-		String list = get(key);
-
-		if (list == null) {
-			return new String[0];
-		}
-
-		return parseStringArray(list);
+		return parseStringArray(get(key));
 	}
 
 	@Override
@@ -1433,7 +1257,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Returns a sub-set of the parameters contained in this configuration.
 	 *
-	 * @param prefix the prefix of the parameter keys which should be included.
+	 * @param prefix   the prefix of the parameter keys which should be included.
 	 * @param truncate if true, the prefix is truncated in the returned properties.
 	 * @return the properties sub-set, may be empty.
 	 */
@@ -1441,34 +1265,28 @@ public class DefaultConfiguration implements Configuration {
 		String cacheKey = truncate + prefix;
 		Properties sub = subcontextCache.get(cacheKey);
 
-		if (sub != null) {
-			// make a copy so users can't change.
-			Properties copy = new Properties();
-			copy.putAll(sub);
-			return copy;
-		}
+		if (sub == null) {
+			sub = new Properties();
 
-		sub = new Properties();
+			int length = prefix.length();
 
-		int length = prefix.length();
+			for (Map.Entry<String, String> entry : backing.entrySet()) {
 
-		for (Map.Entry<String, String> entry : backing.entrySet()) {
+				String key = entry.getKey();
 
-			String key = entry.getKey();
+				if (key.startsWith(prefix)) {
+					// If we are truncating, remove the prefix
+					String newKey = key;
 
-			if (key.startsWith(prefix)) {
-				// If we are truncating, remove the prefix
-				String newKey = key;
+					if (truncate) {
+						newKey = key.substring(length);
+					}
 
-				if (truncate) {
-					newKey = key.substring(length);
+					sub.setProperty(newKey, entry.getValue());
 				}
-
-				sub.setProperty(newKey, entry.getValue());
 			}
+			subcontextCache.put(cacheKey, sub);
 		}
-
-		subcontextCache.put(cacheKey, sub);
 
 		// Make a copy so users can't change.
 		Properties copy = new Properties();
@@ -1478,8 +1296,7 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 *
-	 * @param key the property key
+	 * @param key    the property key
 	 * @param defolt the default value if key not available
 	 * @return the property value or null
 	 */
@@ -1498,9 +1315,9 @@ public class DefaultConfiguration implements Configuration {
 	 * @return the property value or null
 	 */
 	protected String get(final String key) {
-		// Check environment property
-		if (useEnvironmentKey(key)) {
-			String result = backing.get(getEnvironmentKey(key));
+		// Check profile property
+		if (useProfileKey(key)) {
+			String result = backing.get(getProfileKey(key));
 			if (result != null) {
 				return result;
 			}
@@ -1511,9 +1328,8 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Add or Modify a property at runtime.
 	 *
-	 * @param name the property name
+	 * @param name  the property name
 	 * @param value the property value
-	 *
 	 */
 	protected void addOrModifyProperty(final String name, final String value) {
 		if (name == null) {
@@ -1528,9 +1344,12 @@ public class DefaultConfiguration implements Configuration {
 			throw new IllegalArgumentException("value parameter can not be null.");
 		}
 
-		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + value + "'.");
+		//Check for substitution variables
+		final String updatedValue = StringSubstitutor.replace(value, backing);
 
-		runtimeProperties.setProperty(name, value);
+		recordMessage("modifyProperties() - Adding property '" + name + "' with the value '" + updatedValue + "'.");
+
+		runtimeProperties.put(name, updatedValue);
 
 		handlePropertiesChanged();
 	}
@@ -1541,51 +1360,94 @@ public class DefaultConfiguration implements Configuration {
 	protected void handlePropertiesChanged() {
 		// clear the subContext cache, it's now invalid
 		subcontextCache.clear();
-		// Check if environment changed
-		checkEnvironmentProperty();
+		// Check if profile changed
+		checkProfileProperty();
 	}
 
 	/**
-	 * Check if the environment property has been set.
+	 * Set the current Profile if it has been set as property. An application defined property overrides,
+	 * a JVM System property which overrides a OS environment variable
 	 */
-	protected void checkEnvironmentProperty() {
-		String env = backing.get(ENVIRONMENT_PROPERTY);
-		currentEnvironment = (env == null || env.isEmpty()) ? null : env;
+	protected void checkProfileProperty() {
+
+		currentProfile = ObjectUtils.firstNonNull(backing.get(PROFILE_PROPERTY), System.getProperty(PROFILE_PROPERTY), System.getenv().get(PROFILE_PROPERTY));
+
+		//Temporarily exists until deprecated Environment Property is removed
+		if (StringUtils.isBlank(currentProfile)) {
+			//Might not be using profile property, try the environment property for backwards compatibility
+			currentProfile = ObjectUtils.firstNonNull(backing.get(ENVIRONMENT_PROPERTY), System.getProperty(ENVIRONMENT_PROPERTY), System.getenv().get(ENVIRONMENT_PROPERTY));
+		}
+
+		if (StringUtils.isBlank(currentProfile)) {
+			recordMessage("Profile Property <" + PROFILE_PROPERTY + "> has not been defined.");
+		} else {
+			recordMessage("Profile Property <" + PROFILE_PROPERTY + "> has been defined as " + currentProfile);
+		}
 	}
 
 	/**
 	 * @param key the property key
-	 * @return true if check environment suffix
+	 * @return true if check suffix
 	 */
-	protected boolean useEnvironmentKey(final String key) {
+	protected boolean useProfileKey(final String key) {
 		// Has environment and is not the environment property
-		return currentEnvironment != null && !ENVIRONMENT_PROPERTY.equals(key);
+		return currentProfile != null && !ENVIRONMENT_PROPERTY.equals(key) && !PROFILE_PROPERTY.equals(key);
 	}
 
 	/**
 	 * @param key the property key
 	 * @return the property key with the environment suffix
 	 */
-	protected String getEnvironmentKey(final String key) {
-		return key + "." + currentEnvironment;
+	protected String getProfileKey(final String key) {
+		if (useProfileKey(key)) {
+			return key + "." + currentProfile;
+		} else {
+			return key;
+		}
 	}
 
 	/**
-	 * A helper class for properties which are being loaded.
+	 * Check if the environment property has been set.
+	 *
+	 * @deprecated - Replaced by see checkProfileProperty
 	 */
-	class IncludeProperties extends Properties {
+	@Deprecated
+	protected void checkEnvironmentProperty() {
+		checkProfileProperty();
+	}
+
+	/**
+	 * @param key the property key
+	 * @return true if check environment suffix
+	 * @deprecated - Replaced by Environment Profile
+	 */
+	@Deprecated
+	protected boolean useEnvironmentKey(final String key) {
+		return useProfileKey(key);
+	}
+
+	/**
+	 * @param key the property key
+	 * @return the property key with the environment suffix
+	 * @deprecated - Replaced by Environment Profile
+	 */
+	@Deprecated
+	protected String getEnvironmentKey(final String key) {
+		return getProfileKey(key);
+	}
+
+	/**
+	 * A helper class for properties which are being loaded into the {@link DefaultConfiguration}.
+	 *
+	 * <p>This is used to ensure on the call of put(key, value) is immediately loaded into the
+	 * {@link DefaultConfiguration} to respect the order hierarchy for the configuration.</p>
+	 */
+	private class IncludeProperties extends Properties {
 
 		/**
 		 * The properties file location (if applicable).
 		 */
 		private final String location;
-
-		/**
-		 * Creates an IncludeProperties, which has not being sourced externally.
-		 */
-		IncludeProperties() {
-			this("Modified at Runtime");
-		}
 
 		/**
 		 * Creates an IncludeProperties, which will be sourced from the given location.
@@ -1600,7 +1462,7 @@ public class DefaultConfiguration implements Configuration {
 		 * Adds a value to the properties set. This has been overridden to support the Configuration extensions (e.g.
 		 * the "include" directive).
 		 *
-		 * @param aKey the key to add
+		 * @param aKey   the key to add
 		 * @param aValue the value to add
 		 * @return the old value for the key, or null if there was no previously associated value.
 		 */
@@ -1611,7 +1473,9 @@ public class DefaultConfiguration implements Configuration {
 
 			// Act on "include" directives immediately
 			if (INCLUDE.equals(key)) {
-				DefaultConfiguration.this.load(parseStringArray(value));
+				for (String subFile : parseStringArray(StringSubstitutor.replace(value, backing))) {
+					DefaultConfiguration.this.load(subFile);
+				}
 				return value;
 			} else {
 				// Check for a trailing "+" sign on the key (or a leading "+= on the value")
@@ -1627,14 +1491,14 @@ public class DefaultConfiguration implements Configuration {
 					append = true;
 				}
 
-				if (append) {
+				if (append || INCLUDE_AFTER.equals(key)) {
 					String already = DefaultConfiguration.this.get(key);
 
 					// If there is no value already, strip off the leading comma, otherwise append.
 					value = (already != null ? already + "," + value : value);
 				}
 
-				DefaultConfiguration.this.load(key, value, location);
+				DefaultConfiguration.this.put(key, value, location);
 
 				return super.put(key, value);
 			}
@@ -1651,7 +1515,5 @@ public class DefaultConfiguration implements Configuration {
 		public synchronized boolean equals(final Object obj) {
 			return obj instanceof IncludeProperties && Objects.equals(this.location, ((IncludeProperties) obj).location);
 		}
-
 	}
-
 }
