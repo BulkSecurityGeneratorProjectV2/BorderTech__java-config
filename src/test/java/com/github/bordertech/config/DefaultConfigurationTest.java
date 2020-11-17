@@ -2,6 +2,8 @@ package com.github.bordertech.config;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -77,7 +79,7 @@ public class DefaultConfigurationTest {
 	@Before
 	public void loadProperties() {
 		config = new DefaultConfiguration(
-				"com/github/bordertech/config/DefaultConfigurationTest.properties");
+			"com/github/bordertech/config/DefaultConfigurationTest.properties");
 	}
 
 	@Test
@@ -136,7 +138,7 @@ public class DefaultConfigurationTest {
 		assertPropertyEquals(BOOLEAN_FALSE_PROPERTY_KEY, "false", props);
 		assertPropertyEquals("simple.listPropertyKey", "item1,item2,item3", props);
 		assertPropertyEquals("simple.propertiesPropertyKey", "key1=value1,key2=value2,key3=value3",
-				props);
+			props);
 
 		// Now test with the prefix truncated
 		props = config.getSubProperties("simple.", true);
@@ -212,7 +214,7 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("Incorrect long value for missing key", 0, config.getLong(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default long value for missing key", MISSING_PROPERTY_VAL,
-				config.getLong(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
+			config.getLong(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL));
 
 		Assert.assertEquals("Incorrect default long value for missing key",
 			Long.valueOf(MISSING_PROPERTY_VAL), config.getLong(MISSING_PROPERTY_KEY, Long.valueOf(MISSING_PROPERTY_VAL)));
@@ -325,7 +327,7 @@ public class DefaultConfigurationTest {
 			BigDecimal.valueOf(0.0), config.getBigDecimal(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default BigDecimal value for missing key",
-				BigDecimal.valueOf(MISSING_PROPERTY_VAL), config.getBigDecimal(MISSING_PROPERTY_KEY, BigDecimal.
+			BigDecimal.valueOf(MISSING_PROPERTY_VAL), config.getBigDecimal(MISSING_PROPERTY_KEY, BigDecimal.
 				valueOf(MISSING_PROPERTY_VAL)));
 	}
 
@@ -337,13 +339,13 @@ public class DefaultConfigurationTest {
 	@Test
 	public void testGetBigInteger() {
 		Assert.assertEquals("Incorrect BigInteger value for " + INT_PROPERTY_KEY,
-				BigInteger.valueOf(INT_PROPERTY_VAL), config.getBigInteger(INT_PROPERTY_KEY));
+			BigInteger.valueOf(INT_PROPERTY_VAL), config.getBigInteger(INT_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect BigInteger value for missing key",
-				BigInteger.valueOf(0), config.getBigInteger(MISSING_PROPERTY_KEY));
+			BigInteger.valueOf(0), config.getBigInteger(MISSING_PROPERTY_KEY));
 
 		Assert.assertEquals("Incorrect default BigInteger value for missing key",
-				BigInteger.valueOf(MISSING_PROPERTY_VAL), config.getBigInteger(MISSING_PROPERTY_KEY, BigInteger.
+			BigInteger.valueOf(MISSING_PROPERTY_VAL), config.getBigInteger(MISSING_PROPERTY_KEY, BigInteger.
 				valueOf(MISSING_PROPERTY_VAL)));
 	}
 
@@ -369,13 +371,13 @@ public class DefaultConfigurationTest {
 	public void testGetFloat() {
 		final float expectedVal = 234.0f;
 		Assert.assertEquals("Incorrect float value for " + INT_PROPERTY_KEY,
-				Float.parseFloat("123"), config.getFloat(INT_PROPERTY_KEY), 0.0);
+			Float.parseFloat("123"), config.getFloat(INT_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect float value for missing key",
-				0.0f, config.getFloat(MISSING_PROPERTY_KEY), 0.0);
+			0.0f, config.getFloat(MISSING_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect default float value for missing key",
-				expectedVal, config.getFloat(MISSING_PROPERTY_KEY, expectedVal), 0.0);
+			expectedVal, config.getFloat(MISSING_PROPERTY_KEY, expectedVal), 0.0);
 
 		Assert.assertEquals("Incorrect default float value for missing key",
 			Float.valueOf(MISSING_PROPERTY_VAL), config.getFloat(MISSING_PROPERTY_KEY, Float.valueOf(MISSING_PROPERTY_VAL)));
@@ -401,7 +403,7 @@ public class DefaultConfigurationTest {
 			0.0, config.getDouble(MISSING_PROPERTY_KEY), 0.0);
 
 		Assert.assertEquals("Incorrect default double value for missing key",
-				expectedVal, config.getDouble(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL), 0.0);
+			expectedVal, config.getDouble(MISSING_PROPERTY_KEY, MISSING_PROPERTY_VAL), 0.0);
 
 		Assert.assertEquals("Incorrect default double value for missing key",
 			Double.valueOf(MISSING_PROPERTY_VAL), config.getDouble(MISSING_PROPERTY_KEY, Double.valueOf(MISSING_PROPERTY_VAL)));
@@ -704,6 +706,37 @@ public class DefaultConfigurationTest {
 		Assert.assertEquals("physicalFileIncludeValue", config.getString("physical.file.include"));
 	}
 
+	@Test
+	public void testLoadFileFromUserHome() throws Exception {
+
+		Properties props = new Properties();
+		props.setProperty("user.home.file.include", "userHomeIncludeValue");
+		props.store(new FileWriter(FileUtils.getFile(SystemUtils.getUserHome(), "DefaultConfigTestIncludeUserHome.properties")), null);
+
+		DefaultConfiguration config = new DefaultConfiguration(
+			"com/github/bordertech/config/DefaultConfigurationTest_include.properties");
+
+		Assert.assertEquals("userHomeIncludeValue", config.getString("user.home.file.include"));
+	}
+
+	@Test
+	public void testLoadFileFromMultiplePlaces() throws Exception {
+
+		Properties props = new Properties();
+		props.setProperty("user.home.file.include.multi", "userHomeIncludeValue");
+		props.store(new FileWriter(FileUtils.getFile(SystemUtils.getUserHome(), "DefaultConfigTestIncludeMulti.properties")), null);
+		props.clear();
+
+		props = new Properties();
+		props.setProperty("user.home.file.include.multi", "userDirIncludeValue");
+		props.store(new FileWriter(FileUtils.getFile(SystemUtils.getUserHome(), "DefaultConfigTestIncludeMulti.properties")), null);
+
+		DefaultConfiguration config = new DefaultConfiguration(
+			"com/github/bordertech/config/DefaultConfigurationTest_include.properties");
+
+		Assert.assertEquals("userDirIncludeValue", config.getString("user.home.file.include.multi"));
+	}
+
 	/**
 	 * Asserts that the configuration contains the given key/value.
 	 *
@@ -717,12 +750,12 @@ public class DefaultConfigurationTest {
 	/**
 	 * Asserts that the given properties contains the given key/value.
 	 *
-	 * @param key the property key
+	 * @param key      the property key
 	 * @param expected the expected property value.
-	 * @param props the properties to search in.
+	 * @param props    the properties to search in.
 	 */
 	private void assertPropertyEquals(final String key, final Object expected,
-			final Properties props) {
+									  final Properties props) {
 		Assert.assertEquals("Incorrect value for " + key, expected, props.get(key));
 	}
 }

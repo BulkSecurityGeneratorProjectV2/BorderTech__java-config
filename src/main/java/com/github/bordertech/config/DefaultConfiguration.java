@@ -3,9 +3,11 @@ package com.github.bordertech.config;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConversionException;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
@@ -516,21 +518,32 @@ public class DefaultConfiguration implements Configuration {
 				loadResourceContents(contents);
 			}
 
-			// Load the resource as a FILE (if exists)
-			File file = new File(resourceName);
-			if (file.exists()) {
+			// Load the resource as a FILE from the user home directory (if exists)
+			if (loadFile(FileUtils.getFile(SystemUtils.getUserHome(), resourceName))) {
 				found = true;
-				loadFileResource(file);
+			}
+
+			// Load the resource as a FILE from the user directory (if exists)
+			if (loadFile(FileUtils.getFile(SystemUtils.getUserDir(), resourceName))) {
+				found = true;
 			}
 
 			if (!found) {
 				recordMessage("Did not find resource " + resourceName);
 			}
-		} catch (IOException | IllegalArgumentException ex) {
+		} catch (IOException ex) {
 			// Most likely a "Malformed uxxxx encoding." error, which is
 			// usually caused by a developer forgetting to escape backslashes
 			recordException(ex);
 		}
+	}
+
+	private boolean loadFile(final File file) throws IOException {
+		if (file.exists()) {
+			loadFileResource(file);
+			return true;
+		}
+		return false;
 	}
 
 	/**

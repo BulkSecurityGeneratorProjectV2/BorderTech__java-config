@@ -65,6 +65,8 @@ The default implementation looks for the following resources either as a classpa
  - `bordertech-defaults.properties` - framework defaults
  - `bordertech-app.properties` - application properties
  - `bordertech-local.properties` - local developer properties
+ 
+URL resources can be loaded from the user home directory or the current working directory
 
 Projects will usually use `bordertech-app.properties` resource files.
 
