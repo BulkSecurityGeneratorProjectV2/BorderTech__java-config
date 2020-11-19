@@ -36,7 +36,7 @@ Add dependency:
   <dependency>
     <groupId>com.github.bordertech.config</groupId>
     <artifactId>config</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
   </dependency>
   ....
 </project>
@@ -65,7 +65,7 @@ The default implementation looks for the following resources either as a classpa
  - `bordertech-defaults.properties` - framework defaults
  - `bordertech-app.properties` - application properties
  - `bordertech-local.properties` - local developer properties
- 
+
 URL resources can be loaded from the user home directory or the current working directory
 
 Projects will usually use `bordertech-app.properties` resource files.
@@ -76,7 +76,7 @@ The resources loaded into the Configuration can be overridden via [configuration
 
 ### Include resources
 Other property files can be included from other predefined property files.
-If the "include" property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+If the "include" property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL)
 to load that are processed immediately within the current resource being loaded
 
 ``` java properties
@@ -85,32 +85,32 @@ include=include_resource_1.properties[,include_resource_2.properties]
 
 ### IncludeAfter resources
 Other property files can be included from the predefined property file after the current set has loaded.
-If this property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL) 
+If this property is defined, it is treated as a (comma-separated) list of additional resources (classpath resource or a URL)
 to load that are processed after the current (set of) resources have loaded.
 
 ``` java properties
 includeAfter=include_resource_1.properties[,include_resource_2.properties]
-``` 
+```
 
 ### += Append values to predefined properties
-Config also allows for the ability to append values to properties already defined. 
+Config also allows for the ability to append values to properties already defined.
 This is done using '+=' instead of '=' on a key-value pair. Suggested use case is you have a global default set and then
 you want to append application specific values to the default values for access within an application.
- 
+
  ``` java properties
 # Defined in default.properties
 already.defined.key+=value1
 
 #Defined in app.properties
 already.defined.key+=value2,value3
-``` 
+```
 
 `Config.getInstance().get("already.defined.key")` returns `value1,value2,value3`
 
 ### Profiles
 Profiles allow you to map properties to different profiles - for example, dev, test, prod or mock.
-We can activate these profiles in different environments to set(override) the properties we need. 
-The profile property is generally to be defined as either an OS environment variable or a JVM system property. 
+We can activate these profiles in different environments to set(override) the properties we need.
+The profile property is generally to be defined as either an OS environment variable or a JVM system property.
 However, it can be set in a properties file which is useful in unit testing or testing on a local environment.
 
 When a property with the key `bordertech.config.profile` is set, it is used as the suffix for each property lookup:
@@ -205,7 +205,7 @@ The following methods in the `Config` class are useful for unit testing:
 
 ## Configuration
 
-The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`. 
+The initial configuration of `Config` can be overridden by setting properties in a file `bordertech-config.properties`.
 The default `bordertech-config.properties` file name can also be overriden via a System or Environment property `BT_CONFIG_FILE`.
 
 The following options can be set:-
@@ -239,13 +239,13 @@ bordertech.config.resource.append=my-project.properties
 [ConfigurationLoader](https://github.com/BorderTech/java-config/blob/master/src/main/java/com/github/bordertech/config/ConfigurationLoader.java) is the [SPI](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) interface for classes that can load a custom configuration.
 
 By default, the SPI lookup is enabled and if found, it will create the custom configuration
- 
+
 If the `bordertech.config.spi.append.default` is true the Default Configuration will also be appended to the configuration.
 
 ### Best Practice
 
-When using java-config in a container and setting specific properties for that container instance, 
-this can be achieved by property file(s) placed in the container that can be referred to and included within the application at runtime. 
+When using java-config in a container and setting specific properties for that container instance,
+this can be achieved by property file(s) placed in the container that can be referred to and included within the application at runtime.
 
 ## Contributing
 
