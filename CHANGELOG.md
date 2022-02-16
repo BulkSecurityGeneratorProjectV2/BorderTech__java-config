@@ -1,6 +1,7 @@
 # Change log
 
 ## Release in-progress
+* Switch from travis-ci to GitHub Actions #46
 
 ## 1.0.7
 
