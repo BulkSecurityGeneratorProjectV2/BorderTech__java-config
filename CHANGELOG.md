@@ -2,6 +2,7 @@
 
 ## Release in-progress
 * Switch from travis-ci to GitHub Actions #46
+* Latest qa-parent and project dependencies
 
 ## 1.0.7
 
