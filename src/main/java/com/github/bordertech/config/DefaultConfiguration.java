@@ -1,19 +1,5 @@
 package com.github.bordertech.config;
 
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConversionException;
-import org.apache.commons.configuration.MapConfiguration;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.BooleanUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.impl.SimpleLog;
-import org.apache.commons.text.StringSubstitutor;
-
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,6 +29,19 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConversionException;
+import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.impl.SimpleLog;
+import org.apache.commons.text.StringSubstitutor;
 
 /**
  * <p>
@@ -103,6 +102,7 @@ public class DefaultConfiguration implements Configuration {
 	public static final String DUMP_FILE = "bordertech.config.parameters.dump.file";
 	/**
 	 * If this parameter is set, it will be used as the environment suffix for each property lookup.
+	 *
 	 * @deprecated Use {@link #PROFILE_PROPERTY} to define the profile property
 	 */
 	@Deprecated
@@ -215,8 +215,8 @@ public class DefaultConfiguration implements Configuration {
 	 */
 	public DefaultConfiguration(final String... resourceLoadOrder) {
 		if (resourceLoadOrder == null || resourceLoadOrder.length == 0 || Arrays
-			.stream(resourceLoadOrder)
-			.anyMatch(StringUtils::isBlank)) {
+				.stream(resourceLoadOrder)
+				.anyMatch(StringUtils::isBlank)) {
 			this.resourceLoadOrder = InitHelper.getDefaultResourceLoadOrder();
 		} else {
 			this.resourceLoadOrder = resourceLoadOrder;
@@ -228,7 +228,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Copies information from the input stream to the output stream using a specified buffer size.
 	 *
-	 * @param in  the source stream.
+	 * @param in the source stream.
 	 * @param out the destination stream.
 	 * @throws IOException if there is an error reading or writing to the streams.
 	 */
@@ -244,7 +244,6 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
-
 	/**
 	 * Splits the given comma-delimited string into an an array. Leading/trailing spaces in list items will be trimmed.
 	 *
@@ -303,12 +302,9 @@ public class DefaultConfiguration implements Configuration {
 			loadEnvironmentProperties();
 		}
 
-		checkProfileProperty();
+		handlePropertySubstitution();
 
-		// Now perform variable substitution.
-		for (String key : backing.keySet()) {
-			substitute(key);
-		}
+		checkProfileProperty();
 
 		// Dump Header Info
 		LOG.info(getDumpHeader());
@@ -715,8 +711,8 @@ public class DefaultConfiguration implements Configuration {
 		boolean overWriteOnly = getBoolean(USE_SYSTEM_OVERWRITEONLY, false);
 		List<String> allowedPrefixes = Arrays.asList(getStringArray(USE_SYSTEM_PREFIXES));
 		System
-			.getProperties()
-			.forEach((key, value) -> mergeExternalProperty("System Properties",
+				.getProperties()
+				.forEach((key, value) -> mergeExternalProperty("System Properties",
 				(String) key,
 				(String) value,
 				overWriteOnly,
@@ -729,25 +725,25 @@ public class DefaultConfiguration implements Configuration {
 	private void loadEnvironmentProperties() {
 		List<String> allowedPrefixes = Arrays.asList(getStringArray(USE_OSENV_PREFIXES));
 		System
-			.getenv()
-			.forEach((key, value) -> mergeExternalProperty("Environment Properties", key, value, false, allowedPrefixes));
+				.getenv()
+				.forEach((key, value) -> mergeExternalProperty("Environment Properties", key, value, false, allowedPrefixes));
 	}
 
 	/**
 	 * Merge the external property.
 	 *
-	 * @param location        the location of the properties
-	 * @param key             the property key
-	 * @param value           the property value
-	 * @param overWriteOnly   true if only overwrite existing properties
+	 * @param location the location of the properties
+	 * @param key the property key
+	 * @param value the property value
+	 * @param overWriteOnly true if only overwrite existing properties
 	 * @param allowedPrefixes the list of allowed property prefixes
 	 */
 	private void mergeExternalProperty(
-		final String location,
-		final String key,
-		final String value,
-		final boolean overWriteOnly,
-		final List<String> allowedPrefixes) {
+			final String location,
+			final String key,
+			final String value,
+			final boolean overWriteOnly,
+			final List<String> allowedPrefixes) {
 
 		// Check for "include" keys (should not come from System or Environment Properties)
 		if (INCLUDE.equals(key) || INCLUDE_AFTER.equals(key)) {
@@ -772,7 +768,7 @@ public class DefaultConfiguration implements Configuration {
 	 * Check allowed prefixes.
 	 *
 	 * @param allowedPrefixes the list of allowed prefixes
-	 * @param key             the key to check
+	 * @param key the key to check
 	 * @return true if the key is an allowed prefix
 	 */
 	private boolean isAllowedKeyPrefix(final List<String> allowedPrefixes, final String key) {
@@ -1270,7 +1266,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Returns a sub-set of the parameters contained in this configuration.
 	 *
-	 * @param prefix   the prefix of the parameter keys which should be included.
+	 * @param prefix the prefix of the parameter keys which should be included.
 	 * @param truncate if true, the prefix is truncated in the returned properties.
 	 * @return the properties sub-set, may be empty.
 	 */
@@ -1309,7 +1305,7 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * @param key    the property key
+	 * @param key the property key
 	 * @param defolt the default value if key not available
 	 * @return the property value or null
 	 */
@@ -1341,7 +1337,7 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * Add or Modify a property at runtime.
 	 *
-	 * @param name  the property name
+	 * @param name the property name
 	 * @param value the property value
 	 */
 	protected void addOrModifyProperty(final String name, final String value) {
@@ -1368,6 +1364,16 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
+	 * Handle the substitution of property values.
+	 */
+	protected void handlePropertySubstitution() {
+		// Now perform variable substitution.
+		for (String key : backing.keySet()) {
+			substitute(key);
+		}
+	}
+
+	/**
 	 * Handle a property change.
 	 */
 	protected void handlePropertiesChanged() {
@@ -1378,8 +1384,8 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	/**
-	 * Set the current Profile if it has been set as property. An application defined property overrides,
-	 * a JVM System property which overrides a OS environment variable
+	 * Set the current Profile if it has been set as property. An application defined property overrides, a JVM System
+	 * property which overrides a OS environment variable
 	 */
 	protected void checkProfileProperty() {
 
@@ -1452,8 +1458,9 @@ public class DefaultConfiguration implements Configuration {
 	/**
 	 * A helper class for properties which are being loaded into the {@link DefaultConfiguration}.
 	 *
-	 * <p>This is used to ensure on the call of put(key, value) is immediately loaded into the
-	 * {@link DefaultConfiguration} to respect the order hierarchy for the configuration.</p>
+	 * <p>
+	 * This is used to ensure on the call of put(key, value) is immediately loaded into the {@link DefaultConfiguration}
+	 * to respect the order hierarchy for the configuration.</p>
 	 */
 	private class IncludeProperties extends Properties {
 
@@ -1475,7 +1482,7 @@ public class DefaultConfiguration implements Configuration {
 		 * Adds a value to the properties set. This has been overridden to support the Configuration extensions (e.g.
 		 * the "include" directive).
 		 *
-		 * @param aKey   the key to add
+		 * @param aKey the key to add
 		 * @param aValue the value to add
 		 * @return the old value for the key, or null if there was no previously associated value.
 		 */
