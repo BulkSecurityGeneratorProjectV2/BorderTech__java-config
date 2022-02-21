@@ -3,6 +3,7 @@
 ## Release in-progress
 * Switch from travis-ci to GitHub Actions #46
 * Latest qa-parent and project dependencies
+* Restore ability for profile suffix key to refer to other property #49
 
 ## 1.0.7
 

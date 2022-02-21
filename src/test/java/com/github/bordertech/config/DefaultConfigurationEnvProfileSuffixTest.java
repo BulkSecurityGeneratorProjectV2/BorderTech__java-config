@@ -9,7 +9,7 @@ import static com.github.bordertech.config.DefaultConfiguration.PROFILE_PROPERTY
 /**
  * DefaultConfiguration_EnvironmentSuffix_Test - JUnit tests for {@link DefaultConfiguration}.
  */
-public class DefaultConfigurationEnvSuffixTest {
+public class DefaultConfigurationEnvProfileSuffixTest {
 
 	private static final String TEST_PROPERTY_KEY = "default.propertyKey";
 	private static final String DEFAULT_PROPERTY_VALUE = "defaultValue";
