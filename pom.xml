@@ -5,7 +5,7 @@
 	<groupId>com.github.bordertech.config</groupId>
 	<name>config</name>
 	<artifactId>config</artifactId>
-	<version>1.0.8</version>
+	<version>1.0.9-SNAPSHOT</version>
 
 	<parent>
 		<groupId>com.github.bordertech.common</groupId>
@@ -30,7 +30,7 @@
 		<url>https://github.com/bordertech/java-config</url>
 		<connection>scm:git:https://github.com/bordertech/java-config.git</connection>
 		<developerConnection>scm:git:https://github.com/bordertech/java-config.git</developerConnection>
-		<tag>config-1.0.8</tag>
+		<tag>java-config-1.0.0</tag>
 	</scm>
 
 	<issueManagement>
