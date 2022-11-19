@@ -3,6 +3,8 @@ package com.github.bordertech.config;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -60,7 +62,7 @@ public class TouchfileTest {
 
 	@Test
 	public void testFileExistsAndNoChange() throws IOException {
-		File file = File.createTempFile("testTouch", ".tmp");
+		File file = Files.createTempFile("testTouch", ".tmp").toFile();
 		long modified = file.lastModified();
 		try {
 			String pathTemp = file.getAbsolutePath();
@@ -81,7 +83,7 @@ public class TouchfileTest {
 
 	@Test
 	public void testFileChanges() throws IOException {
-		File file = File.createTempFile("testTouch2", ".tmp");
+		File file = Files.createTempFile("testTouch2", ".tmp").toFile();
 		long modified = file.lastModified();
 		try {
 			String pathTemp = file.getAbsolutePath();
